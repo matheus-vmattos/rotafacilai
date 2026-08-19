@@ -1,6 +1,6 @@
 {
-  "versionCode": 1,
-  "versionName": "0.1.0",
+  "versionCode": 2,
+  "versionName": "0.2.0",
   "apkUrl": "https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/rotafacil.apk",
-  "notes": "Primeira versão instalável: tela de carregar o baú com scan."
+  "notes": "Aba 'Conferir pacotes' (sempre acessível) + trânsito ao vivo no próximo trecho (via TomTom, com fallback automático)."
 }

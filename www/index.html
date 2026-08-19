@@ -820,6 +820,7 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
 .chip.g{background:var(--green)}
 .dist{margin-left:auto;font-size:15px;font-weight:800;color:var(--blue)}
 .dist.g{color:var(--green)}
+.dist.amber{color:var(--amber)}
 .addr{font-size:23px;font-weight:800;line-height:1.2;letter-spacing:-.5px}
 .hood{color:var(--mut);font-size:13.5px;margin-top:3px}
 
@@ -901,6 +902,20 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
 .sp{width:44px;height:44px;border:4px solid var(--line);border-top-color:var(--blue);border-radius:50%;animation:r .8s linear infinite}
 @keyframes r{to{transform:rotate(360deg)}}
 #load p{font-weight:700;color:var(--mut);font-size:15px}
+
+/* ---- aba: conferir pacotes ---- */
+.pkTop{display:flex;align-items:center;gap:12px}
+.pkTopTitle{font-size:20px;font-weight:800}
+.pkStats{margin:12px 0 4px;color:var(--mut);font-size:13.5px;font-weight:700}
+.pkrow{display:flex;align-items:flex-start;gap:11px;padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.pkrow .n{flex:0 0 32px;height:32px;border-radius:10px;background:#EEF2F7;color:var(--mut);font-weight:800;
+  display:flex;align-items:center;justify-content:center;font-size:13.5px;margin-top:1px}
+.pkrow.d .n{background:#E9F7EF;color:var(--green)}
+.pkrow .info{flex:1;min-width:0}
+.pkrow .a{font-size:14.5px;font-weight:700;line-height:1.3}
+.pkrow.d .a{color:var(--mut);text-decoration:line-through}
+.pkrow .loc{font-size:12.5px;color:var(--mut);font-weight:600;margin-top:3px}
+.pkrow .loc b{color:var(--ink);font-weight:800;font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace}
 
 /* auto-update */
 #updBanner{position:fixed;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top,0px));z-index:4000;
@@ -995,6 +1010,7 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
       <div class="bar"><i id="tBar" style="width:0%"></i></div>
     </div>
     <button class="iconbtn" id="btnFind" aria-label="achar pacote"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16 L21 21"/></svg></button>
+    <button class="iconbtn" id="btnPkgs" aria-label="conferir pacotes"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></button>
   </div>
 
   <button id="recenter" class="on" aria-label="seguir"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="8.5"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3"/></svg></button>
@@ -1038,6 +1054,17 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
   </div>
 </div>
 
+<!-- ========== ABA: CONFERIR PACOTES (aberta a qualquer momento durante a rota) ========== -->
+<div id="pkScreen" class="screen hide">
+  <div class="pkTop">
+    <button class="iconbtn" id="btnPkgsBack" aria-label="voltar"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <div class="pkTopTitle">Conferir pacotes</div>
+  </div>
+  <div class="srch" style="margin-top:16px"><input id="pkQ" maxlength="15" placeholder="buscar por últimos dígitos" autocomplete="off"></div>
+  <div id="pkStats" class="pkStats">—</div>
+  <div id="pkFullList"></div>
+</div>
+
 <div id="toast"></div>
 <div id="load" class="hide"><div class="sp"></div><p id="loadTxt">calculando…</p></div>
 <div id="updBanner"><span class="t"></span><button id="updBtn">ATUALIZAR</button></div>
@@ -1048,6 +1075,17 @@ let STOPS=[],ORIGIN=null,ORDER=[],KM=0,KM_RAW=0,DONE=new Set(),TAIL=5;
 let MAP=null,PINS=null,LINE=null,MEMARK=null,MEPOS=null,HEAD=0,FOLLOW=true,WATCH=null;
 let ARRIVED=null,LASTROUTE=null,SHEETOPEN=false;
 let SCANNED=new Set();
+let LASTLEG=null; // {si, delayMin} — trânsito do trecho até a próxima parada
+
+/* Chave da TomTom Routing API (trânsito ao vivo). Sem chave, o app cai
+   automaticamente pro OSRM (sem trânsito) e depois linha reta — nada
+   quebra. Pra conseguir uma chave grátis: https://developer.tomtom.com
+   (free tier: 20 mil chamadas/mês na Routing API).
+   Pra trocar de provedor de trânsito no futuro (ex.: Google Routes),
+   basta escrever uma função no mesmo formato de tomtomLeg() — que
+   devolve {line,km,min,delayMin} — e chamá-la em fetchLeg() antes/no
+   lugar da TomTom. */
+const TOMTOM_KEY='';
 const R_CHEGADA=0.07;
 const $=s=>document.querySelector(s);
 
@@ -1123,6 +1161,25 @@ async function osrmLeg(a,b){const c=[a,b].map(x=>x.lng.toFixed(6)+','+x.lat.toFi
   const r=await fetch('https://router.project-osrm.org/route/v1/driving/'+c+'?overview=full&geometries=geojson',{signal:ac.signal});
   clearTimeout(t);const j=await r.json();if(!j.routes||!j.routes[0])throw 0;
   return {line:j.routes[0].geometry.coordinates.map(x=>[x[1],x[0]]),km:j.routes[0].distance/1000}}
+/* trecho até a próxima parada com trânsito ao vivo (só esse leg — a matriz
+   inteira da otimização continua no OSRM, de graça, pra não estourar a
+   cota da TomTom). Usada em maybeLeg(), chamada a cada atualização de GPS. */
+async function tomtomLeg(a,b){
+  if(!TOMTOM_KEY)throw 0;
+  const c=`${a.lat},${a.lng}:${b.lat},${b.lng}`;
+  const ac=new AbortController(),t=setTimeout(()=>ac.abort(),9000);
+  const r=await fetch(`https://api.tomtom.com/routing/1/calculateRoute/${c}/json?key=${TOMTOM_KEY}&traffic=true&travelMode=car`,{signal:ac.signal});
+  clearTimeout(t);const j=await r.json();const rt=j.routes&&j.routes[0];if(!rt)throw 0;
+  const line=rt.legs.flatMap(L=>L.points.map(p=>[p.latitude,p.longitude]));
+  return{line,km:rt.summary.lengthInMeters/1000,
+    min:Math.round(rt.summary.travelTimeInSeconds/60),
+    delayMin:rt.summary.trafficDelayInSeconds?Math.round(rt.summary.trafficDelayInSeconds/60):0};
+}
+async function fetchLeg(a,b){
+  try{return await tomtomLeg(a,b)}catch(e){}
+  try{const o=await osrmLeg(a,b);return{...o,min:null,delayMin:0}}catch(e){}
+  return{line:[[a.lat,a.lng],[b.lat,b.lng]],km:hav(a,b),min:null,delayMin:0};
+}
 
 /* ===================== CONSTRUIR ===================== */
 async function build(stops){
@@ -1214,8 +1271,9 @@ async function maybeLeg(){
   const nx=nextStop();if(!nx||!MEPOS)return;
   const key=nx.si+'|'+MEPOS.lat.toFixed(3)+','+MEPOS.lng.toFixed(3);
   if(LASTROUTE===key)return;LASTROUTE=key;
-  let pts=null;
-  try{pts=(await osrmLeg(MEPOS,nx.s)).line}catch(e){pts=[[MEPOS.lat,MEPOS.lng],[nx.s.lat,nx.s.lng]]}
+  const leg=await fetchLeg(MEPOS,nx.s);
+  LASTLEG={si:nx.si,delayMin:leg.delayMin||0};refresh();
+  const pts=leg.line;
   if(LINE)MAP.removeLayer(LINE);
   LINE=L.polyline(pts,{color:'#2563EB',weight:6,opacity:.9,lineCap:'round',
     dashArray:pts.length===2?'10,10':null}).addTo(MAP);
@@ -1243,8 +1301,9 @@ function refresh(){
   $('#cPk').classList.remove('hide');
   $('#cChip').textContent='PARADA '+(nx.i+1);
   $('#cChip').className='chip'+(chegou?' g':'');
-  $('#cDist').textContent=dist===null?'buscando GPS…':fmtD(dist);
-  $('#cDist').className='dist'+(chegou?' g':'');
+  const delay=(LASTLEG&&LASTLEG.si===nx.si&&!chegou)?LASTLEG.delayMin:0;
+  $('#cDist').textContent=dist===null?'buscando GPS…':fmtD(dist)+(delay>0?` · +${delay} min trânsito`:'');
+  $('#cDist').className='dist'+(chegou?' g':'')+(delay>0?' amber':'');
   $('#cAddr').textContent=chegou?'Você chegou':s.addr;
   $('#cHood').textContent=chegou?s.addr:[s.hood,s.city].filter(Boolean).join(' · ');
 
@@ -1356,12 +1415,44 @@ function speak(t){try{if(!('speechSynthesis'in window))return;
   const u=new SpeechSynthesisUtterance(t);u.lang='pt-BR';u.rate=1.05;
   speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}}
 
+/* ===================== ABA: CONFERIR PACOTES =====================
+   Acessível a qualquer momento durante a rota (ícone no topo, não
+   escondido dentro do card). Mostra todo pacote da rota, em que
+   parada/ordem ele entra e onde guardar no baú, com busca. */
+function renderPkFull(filter){
+  const plan=bauPlan();const rows=[];
+  ORDER.forEach((si,pos)=>{
+    const s=STOPS[si],done=DONE.has(si);
+    s.pkgs.forEach(p=>{
+      if(filter&&!normCode(p).includes(filter))return;
+      const pl=plan.get(p),nm={porta:'porta',meio:'meio',fundo:'fundo'}[pl.sector];
+      rows.push(`<div class="pkrow${done?' d':''}" data-si="${si}"><div class="n">${done?'✓':pos+1}</div>
+        <div class="info"><div class="a">${esc(s.addr)}</div>
+        <div class="loc">${esc(p.slice(0,-TAIL))}<b>${esc(p.slice(-TAIL))}</b> · ${nm} do baú, pilha ${pl.pilha}</div></div></div>`);
+    });
+  });
+  $('#pkFullList').innerHTML=rows.join('')||'<div class="nohit">Nenhum pacote encontrado</div>';
+}
+function updatePkStats(){
+  $('#pkStats').textContent=`${DONE.size} de ${ORDER.length} paradas entregues · ${bauTotal()} pacotes no total`;
+}
+function showPkScreen(){$('#pkScreen').classList.remove('hide');$('#pkQ').value='';renderPkFull('');updatePkStats()}
+function hidePkScreen(){$('#pkScreen').classList.add('hide')}
+
 /* ===================== SHEET ===================== */
 function openSheet(){SHEETOPEN=true;$('#sheet').classList.add('open');renderMore();layoutSheet()}
 function closeSheet(){SHEETOPEN=false;$('#sheet').classList.remove('open');layoutSheet()}
 $('#grip').onclick=()=>SHEETOPEN?closeSheet():openSheet();
 $('#btnFind').onclick=()=>{openSheet();setTimeout(()=>{$('#q').focus();$('#q').scrollIntoView({block:'center',behavior:'smooth'})},260)};
 $('#q').oninput=e=>doSearch(e.target.value);
+$('#btnPkgs').onclick=showPkScreen;
+$('#btnPkgsBack').onclick=hidePkScreen;
+$('#pkQ').oninput=e=>renderPkFull(normCode(e.target.value));
+$('#pkFullList').addEventListener('click',e=>{
+  const r=e.target.closest('.pkrow');if(!r)return;
+  const s=STOPS[+r.dataset.si];hidePkScreen();
+  if(MAP){setFollow(false);setTimeout(()=>centerOn([s.lat,s.lng],17),340)}
+});
 $('#recenter').onclick=()=>setFollow(!FOLLOW);
 $('#btnQuit').onclick=()=>{if(confirm('Apagar esta rota?')){wipe();location.reload()}};
 document.addEventListener('click',e=>{const n=e.target.closest('.nx');if(!n)return;
@@ -1477,7 +1568,7 @@ window.addEventListener('resize',layoutSheet);
    (InstallApk) baixa a .apk e abre o instalador do Android — que sempre pede
    confirmação, não tem como pular essa tela. Fora do app nativo (navegador
    comum) essa checagem nem roda. */
-const APP_VERSION_CODE=1; // mantenha igual ao versionCode em android/app/build.gradle
+const APP_VERSION_CODE=2; // mantenha igual ao versionCode em android/app/build.gradle
 (function(){
   if(!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()))return;
   const VERSION_URL='https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/version.json';
