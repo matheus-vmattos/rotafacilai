@@ -827,11 +827,13 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
 .pk.multi{background:var(--amberbg);border-color:#F3D2A0}
 .pklab{font-size:10.5px;font-weight:800;letter-spacing:.7px;color:var(--mut);text-transform:uppercase}
 .pk.multi .pklab{color:var(--amber)}
-.pkline{display:flex;align-items:baseline;gap:2px;margin-top:2px}
+.pkline{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px;margin-top:2px}
 .pkline+.pkline{margin-top:2px;padding-top:6px;border-top:1px dashed #DDE3EC}
 .pkdim{font-size:13px;color:#A3AEBE}
 .pkkey{font-size:34px;font-weight:800;letter-spacing:1.5px;line-height:1.15}
 .pk.multi .pkkey{color:var(--amber)}
+.pkloc{flex:0 0 100%;font-size:12px;font-weight:700;color:var(--mut)}
+.pk.multi .pkloc{color:#8a6a2e}
 
 .pkmore{margin-top:7px;font-size:12px;font-weight:700;color:var(--amber)}
 .cta{margin-top:14px}
@@ -876,6 +878,18 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
 .bau .p b{display:block;font-size:14px;color:var(--ink)}
 .setor{display:inline-block;font-size:10.5px;font-weight:800;padding:5px 9px;border-radius:7px;color:#fff;margin:14px 0 8px}
 .setor.porta{background:#0E7C86}.setor.meio{background:#7A5AC4}.setor.fundo{background:var(--amber)}
+
+/* ---- tela de carregar o baú (scan) ---- */
+#bauProg{margin:16px 0 14px;text-align:center;font-weight:800}
+#bauBanner{border-radius:22px;padding:26px 20px;text-align:center;margin-bottom:14px;color:#fff}
+#bauBanner .bb-setor{font-size:15px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;opacity:.92}
+#bauBanner .bb-pilha{font-size:38px;font-weight:800;letter-spacing:-1px;margin-top:4px}
+#bauBanner .bb-addr{font-size:13px;opacity:.85;margin-top:6px}
+#bauBanner.porta{background:#0E7C86}#bauBanner.meio{background:#7A5AC4}#bauBanner.fundo{background:var(--amber)}
+#bauBanner.warn{background:#FEECEC;color:var(--red)}
+#bauBanner.warn .bb-setor{color:var(--red);opacity:1}
+#bauBanner.info{background:#EEF2F7;color:var(--mut)}
+#bauBanner.info .bb-setor{color:var(--mut)}
 
 /* toast + loading */
 #toast{position:fixed;left:50%;bottom:calc(30px + var(--safe));transform:translateX(-50%) translateY(160px);
@@ -934,8 +948,31 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
   </div>
   <div class="saveline" id="bSave">✓ A rota fica salva. Se fechar o app, você volta de onde parou.</div>
   <div class="spacer"></div>
-  <button class="btn plain" id="btnBau">Ver ordem de carregar o baú</button>
-  <button class="btn big green" id="btnStart">INICIAR ROTA ▸</button>
+  <button class="btn big green" id="btnToBau">CARREGAR O BAÚ ▸</button>
+  <button class="btn link" id="btnSkipBau">pular e iniciar rota direto</button>
+</div>
+
+<!-- ========== 2.5 CARREGAR O BAÚ (SCAN) ========== -->
+<div id="scBau" class="screen hide">
+  <div class="brand">
+    <div class="blogo"><svg viewBox="0 0 24 24" fill="#fff"><path d="M5 18 L12 4 L19 18 L12 15 Z"/></svg></div>
+    <div><div class="bname">Carregar o baú</div></div>
+  </div>
+  <div class="bsub">Pegue um pacote qualquer da pilha e escaneie. O app diz onde guardar.</div>
+  <button class="btn link" id="btnBauSkip" style="align-self:flex-start;padding-left:0">pular esta etapa</button>
+
+  <div id="bauProg" class="saveline" style="background:#EFF4FF;color:#2C3E6B">0 de 0 pacotes carregados</div>
+
+  <div id="bauBanner" class="hide"></div>
+
+  <div class="srch">
+    <input id="bauInput" maxlength="15" placeholder="últimos dígitos" autocomplete="off">
+    <button id="bauScanBtn" aria-label="escanear"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M7 12h10"/></svg></button>
+  </div>
+
+  <div class="spacer"></div>
+  <div id="bauNote" class="note hide"></div>
+  <button class="btn big green" id="btnBauDone">PRONTO — INICIAR ROTA ▸</button>
 </div>
 
 <!-- ========== 3. APP ========== -->
@@ -999,6 +1036,7 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
 let STOPS=[],ORIGIN=null,ORDER=[],KM=0,KM_RAW=0,DONE=new Set(),TAIL=5;
 let MAP=null,PINS=null,LINE=null,MEMARK=null,MEPOS=null,HEAD=0,FOLLOW=true,WATCH=null;
 let ARRIVED=null,LASTROUTE=null,SHEETOPEN=false;
+let SCANNED=new Set();
 const R_CHEGADA=0.07;
 const $=s=>document.querySelector(s);
 
@@ -1015,7 +1053,7 @@ function fmtD(km){return km<1?Math.round(km*1000)+' m':km.toFixed(1)+' km'}
 
 /* ===================== PERSISTÊNCIA ===================== */
 const LS='rotafacil.v5';
-function save(){try{localStorage.setItem(LS,JSON.stringify({ts:Date.now(),STOPS,ORDER,ORIGIN,TAIL,KM,KM_RAW,DONE:[...DONE]}))}catch(e){}}
+function save(){try{localStorage.setItem(LS,JSON.stringify({ts:Date.now(),STOPS,ORDER,ORIGIN,TAIL,KM,KM_RAW,DONE:[...DONE],SCANNED:[...SCANNED]}))}catch(e){}}
 function restore(){try{return JSON.parse(localStorage.getItem(LS)||'null')}catch(e){return null}}
 function wipe(){try{localStorage.removeItem(LS)}catch(e){}}
 
@@ -1077,7 +1115,7 @@ async function osrmLeg(a,b){const c=[a,b].map(x=>x.lng.toFixed(6)+','+x.lat.toFi
 
 /* ===================== CONSTRUIR ===================== */
 async function build(stops){
-  STOPS=stops;DONE=new Set();if(!STOPS.length)return toast('Nenhuma parada válida');
+  STOPS=stops;DONE=new Set();SCANNED=new Set();if(!STOPS.length)return toast('Nenhuma parada válida');
   TAIL=calcTail(STOPS.flatMap(s=>s.pkgs));
   load(true,'localizando você…');ORIGIN=await getOrigin();
   const pts=[ORIGIN,...STOPS];let D;
@@ -1106,7 +1144,7 @@ function showBrief(){
 
 /* ===================== APP / MAPA ===================== */
 function startApp(){
-  $('#scImport').classList.add('hide');$('#scBrief').classList.add('hide');$('#app').classList.remove('hide');
+  $('#scImport').classList.add('hide');$('#scBrief').classList.add('hide');$('#scBau').classList.add('hide');$('#app').classList.remove('hide');
   if(!MAP){
     MAP=L.map('map',{zoomControl:false,attributionControl:true});
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
@@ -1204,8 +1242,10 @@ function refresh(){
   // enquanto está a caminho, o mapa importa mais: mostra 1 código.
   // ao chegar, o código é a informação principal: mostra todos.
   const vis = chegou ? s.pkgs : s.pkgs.slice(0,1);
-  $('#cPkList').innerHTML = vis.map(p=>
-    `<div class="pkline"><span class="pkdim mono">${esc(p.slice(0,-TAIL))}</span><span class="pkkey mono">${esc(p.slice(-TAIL))}</span></div>`).join('')
+  $('#cPkList').innerHTML = vis.map(p=>{
+    const loc=chegou?pkgLoc(p):'';
+    return `<div class="pkline"><span class="pkdim mono">${esc(p.slice(0,-TAIL))}</span><span class="pkkey mono">${esc(p.slice(-TAIL))}</span>${loc?`<span class="pkloc">${esc(loc)}</span>`:''}</div>`;
+  }).join('')
     + (!chegou&&multi?`<div class="pkmore">+ ${s.pkgs.length-1} pacote(s) — aparecem ao chegar</div>`:'');
 
   if(chegou&&ARRIVED!==nx.si){ARRIVED=nx.si;if(navigator.vibrate)navigator.vibrate([140,70,140])}
@@ -1253,14 +1293,16 @@ function renderMore(){
       <div class="a">${esc(s.addr)}</div>
       <div class="c mono">${esc(s.pkgs[0].slice(-TAIL))}${s.pkgs.length>1?`<b> +${s.pkgs.length-1}</b>`:''}</div>
     </div>`}).join('');
-  let html='',cur='',n=1;
+  let html='',cur='';const plan=bauPlan();
   [...ORDER].map((si,pos)=>({si,pos})).reverse().forEach(({si,pos})=>{
-    const s=STOPS[si],f=pos/ORDER.length,k=f<=1/3?'porta':(f<=2/3?'meio':'fundo');
-    const nm=k==='porta'?'PORTA DO BAÚ':k==='meio'?'MEIO DO BAÚ':'FUNDO DO BAÚ';
-    if(k!==cur){cur=k;html+=`<div class="setor ${k}">${nm}</div>`}
-    s.pkgs.forEach(p=>{html+=`<div class="bau"><div class="o">${n++}</div>
-      <div class="k mono"><i>${esc(p.slice(0,-TAIL))}</i>${esc(p.slice(-TAIL))}</div>
-      <div class="p">parada<b>${pos+1}</b></div></div>`})});
+    const s=STOPS[si];
+    s.pkgs.forEach(p=>{
+      const pl=plan.get(p),k=pl.sector,got=SCANNED.has(p);
+      const nm=k==='porta'?'PORTA DO BAÚ':k==='meio'?'MEIO DO BAÚ':'FUNDO DO BAÚ';
+      if(k!==cur){cur=k;html+=`<div class="setor ${k}">${nm}</div>`}
+      html+=`<div class="bau"><div class="o">${got?'✓':pl.pilha}</div>
+        <div class="k mono"><i>${esc(p.slice(0,-TAIL))}</i>${esc(p.slice(-TAIL))}</div>
+        <div class="p">parada<b>${pos+1}</b></div></div>`})});
   $('#bauList').innerHTML=html;
 }
 function allPk(){const o=[];ORDER.forEach((si,pos)=>STOPS[si].pkgs.forEach(p=>o.push({p,si,pos})));return o}
@@ -1276,6 +1318,33 @@ function doSearch(v){
   r.querySelector('.hit').onclick=()=>{ if(MAP){setFollow(false);closeSheet();setTimeout(()=>centerOn([s.lat,s.lng],17),340)} toast('Parada '+(x.pos+1)+' no mapa') };
 }
 
+/* ===================== BAÚ (posição de cada pacote) =====================
+   "pilha" = posição do pacote dentro do seu setor (porta/meio/fundo),
+   contada na ordem de carregamento (da última parada pra primeira). É
+   estática — não depende da ordem em que a pessoa escaneia. */
+function bauPlan(){
+  const out=new Map(),counts={porta:0,meio:0,fundo:0};
+  [...ORDER].map((si,pos)=>({si,pos})).reverse().forEach(({si,pos})=>{
+    const s=STOPS[si],f=pos/ORDER.length,sector=f<=1/3?'porta':(f<=2/3?'meio':'fundo');
+    counts[sector]++;
+    s.pkgs.forEach(p=>out.set(p,{sector,pilha:counts[sector],addr:s.addr,si,pos}));
+  });
+  return out;
+}
+function pkgLoc(p){const pl=bauPlan().get(p);if(!pl)return'';
+  const nm={porta:'porta',meio:'meio',fundo:'fundo'}[pl.sector];
+  return`pilha ${pl.pilha}, ${nm} do baú`}
+function normCode(s){return String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'')}
+function matchPackage(raw){
+  const q=normCode(raw);if(q.length<3)return{state:'short'};
+  const hits=allPk().filter(x=>{const c=normCode(x.p);return c.includes(q)||q.includes(c)});
+  if(!hits.length)return{state:'notfound'};
+  if(hits.length>1)return{state:'ambiguous',n:hits.length};
+  return{state:'ok',pkg:hits[0].p}}
+function speak(t){try{if(!('speechSynthesis'in window))return;
+  const u=new SpeechSynthesisUtterance(t);u.lang='pt-BR';u.rate=1.05;
+  speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}}
+
 /* ===================== SHEET ===================== */
 function openSheet(){SHEETOPEN=true;$('#sheet').classList.add('open');renderMore();layoutSheet()}
 function closeSheet(){SHEETOPEN=false;$('#sheet').classList.remove('open');layoutSheet()}
@@ -1287,8 +1356,11 @@ $('#btnQuit').onclick=()=>{if(confirm('Apagar esta rota?')){wipe();location.relo
 document.addEventListener('click',e=>{const n=e.target.closest('.nx');if(!n)return;
   const s=STOPS[ORDER[+n.dataset.p]];if(MAP){setFollow(false);closeSheet();setTimeout(()=>centerOn([s.lat,s.lng],17),340)}});
 
-/* leitor de código de barras, quando o navegador tiver */
-$('#btnScan').onclick=async()=>{
+/* leitor de código de barras, quando o navegador tiver — camada plugável:
+   entrada manual sempre funciona, a câmera é só um atalho por cima dela.
+   symbology ainda não confirmada com o cliente (pendência), por isso a
+   lista de formats é ampla e a entrada manual nunca fica bloqueada. */
+async function scanBarcode(cb){
   if(!('BarcodeDetector' in window))return toast('Sem leitor neste navegador — digite os dígitos',3400);
   try{const det=new BarcodeDetector({formats:['code_128','code_39','ean_13','itf','qr_code']});
     const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
@@ -1297,9 +1369,10 @@ $('#btnScan').onclick=async()=>{
     document.body.appendChild(v);
     const stop=()=>{clearInterval(iv);st.getTracks().forEach(t=>t.stop());v.remove()};
     const iv=setInterval(async()=>{try{const b=await det.detect(v);
-      if(b.length){stop();$('#q').value=b[0].rawValue;doSearch(b[0].rawValue);if(navigator.vibrate)navigator.vibrate(110)}}catch(e){}},350);
+      if(b.length){stop();cb(b[0].rawValue);if(navigator.vibrate)navigator.vibrate(110)}}catch(e){}},350);
     v.onclick=stop;
-  }catch(e){toast('Câmera indisponível — digite os dígitos',3400)}};
+  }catch(e){toast('Câmera indisponível — digite os dígitos',3400)}}
+$('#btnScan').onclick=()=>scanBarcode(v=>{$('#q').value=v;doSearch(v)});
 
 /* ===================== ARQUIVO / TELAS ===================== */
 function readFile(f){load(true,'lendo a planilha…');const fr=new FileReader();
@@ -1314,8 +1387,49 @@ const dz=$('#drop');
 ['dragleave','drop'].forEach(v=>dz.addEventListener(v,e=>{e.preventDefault();dz.classList.remove('over')}));
 dz.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)readFile(f)});
 dz.onclick=()=>$('#file').click();
-$('#btnStart').onclick=startApp;
-$('#btnBau').onclick=()=>{startApp();setTimeout(()=>{openSheet();$('#bauList').scrollIntoView({block:'start',behavior:'smooth'})},400)};
+/* ===================== TELA: CARREGAR O BAÚ (SCAN) ===================== */
+function bauTotal(){return STOPS.reduce((s,x)=>s+x.pkgs.length,0)}
+function updateBauUI(){
+  const tot=bauTotal(),rest=tot-SCANNED.size;
+  $('#bauProg').textContent=`${SCANNED.size} de ${tot} pacotes carregados`;
+  $('#bauNote').classList.remove('hide');
+  $('#bauNote').innerHTML = rest>0
+    ? `Ainda faltam <b>${rest}</b> pacote(s) escanear — sem problema, pode fazer isso depois. A busca (🔍) acha qualquer pacote durante a rota.`
+    : (tot>0?'✓ Baú todo carregado e conferido!':'');
+}
+function bauBanner(cls,setorTxt,pilhaTxt,addrTxt){
+  const b=$('#bauBanner');b.className=cls;b.classList.remove('hide');
+  b.innerHTML=`<div class="bb-setor">${esc(setorTxt)}</div><div class="bb-pilha">${esc(pilhaTxt)}</div>`
+    +(addrTxt?`<div class="bb-addr">${esc(addrTxt)}</div>`:'');
+}
+function registerScan(raw){
+  const r=matchPackage(raw);
+  if(r.state==='short')return;
+  if(r.state==='notfound'){
+    bauBanner('warn','⚠ pacote não é desta rota',raw.toUpperCase().replace(/[^A-Z0-9]/g,''));
+    speak('Atenção. Esse pacote não é desta rota.');
+    if(navigator.vibrate)navigator.vibrate([80,60,80,60,80]);
+    return;
+  }
+  if(r.state==='ambiguous'){bauBanner('info','digite mais um dígito',r.n+' pacotes batem');return}
+  const pl=bauPlan().get(r.pkg),already=SCANNED.has(r.pkg);
+  SCANNED.add(r.pkg);save();updateBauUI();
+  const nm={porta:'PORTA DO BAÚ',meio:'MEIO DO BAÚ',fundo:'FUNDO DO BAÚ'}[pl.sector];
+  bauBanner(pl.sector,(already?'já carregado — ':'')+nm,'pilha '+pl.pilha,pl.addr);
+  if(!already){speak(`${nm}. Pilha ${pl.pilha}.`);if(navigator.vibrate)navigator.vibrate(60)}
+  $('#bauInput').value='';
+}
+function showBau(){$('#scBrief').classList.add('hide');$('#scBau').classList.remove('hide');
+  updateBauUI();setTimeout(()=>$('#bauInput').focus(),300)}
+let bauDeb=null;
+$('#bauInput').oninput=e=>{clearTimeout(bauDeb);const v=e.target.value;
+  bauDeb=setTimeout(()=>{if(v.replace(/[^A-Za-z0-9]/g,'').length>=3)registerScan(v)},450)};
+$('#bauInput').addEventListener('keydown',e=>{if(e.key==='Enter'){clearTimeout(bauDeb);registerScan(e.target.value)}});
+$('#bauScanBtn').onclick=()=>scanBarcode(v=>{$('#bauInput').value=v;registerScan(v)});
+$('#btnToBau').onclick=showBau;
+$('#btnSkipBau').onclick=startApp;
+$('#btnBauSkip').onclick=startApp;
+$('#btnBauDone').onclick=startApp;
 
 /* rota salva */
 (function(){const s=restore();if(!s||!s.STOPS||!s.STOPS.length)return;
@@ -1325,7 +1439,7 @@ $('#btnBau').onclick=()=>{startApp();setTimeout(()=>{openSheet();$('#bauList').s
   $('#rsub').innerHTML=`${t} paradas · <b>${f} entregues</b>, faltam <b>${t-f}</b><br>salva ${hoje?'hoje':d.getDate()+'/'+(d.getMonth()+1)} às ${hh}`;
   $('#resume').classList.remove('hide');
   $('#btnResume').onclick=()=>{STOPS=s.STOPS;ORDER=s.ORDER;ORIGIN=s.ORIGIN;TAIL=s.TAIL||5;
-    KM=s.KM||0;KM_RAW=s.KM_RAW||0;DONE=new Set(s.DONE||[]);startApp();toast('Voltamos de onde você parou')};
+    KM=s.KM||0;KM_RAW=s.KM_RAW||0;DONE=new Set(s.DONE||[]);SCANNED=new Set(s.SCANNED||[]);startApp();toast('Voltamos de onde você parou')};
   $('#btnNova').onclick=()=>{if(confirm('Isso apaga a rota salva. Continuar?')){wipe();$('#resume').classList.add('hide')}};
 })();
 
