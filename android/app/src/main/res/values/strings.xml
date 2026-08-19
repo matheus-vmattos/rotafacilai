@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Rota Fácil</string>
+    <string name="title_activity_main">Rota Fácil</string>
+    <string name="package_name">com.rotafacil.app</string>
+    <string name="custom_url_scheme">com.rotafacil.app</string>
+</resources>

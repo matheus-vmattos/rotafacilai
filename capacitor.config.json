@@ -1,0 +1,8 @@
+{
+  "appId": "com.rotafacil.app",
+  "appName": "Rota Fácil",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  }
+}
