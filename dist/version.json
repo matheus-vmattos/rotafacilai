@@ -1,6 +1,6 @@
 {
-  "versionCode": 11,
-  "versionName": "0.8.0",
+  "versionCode": 12,
+  "versionName": "0.8.1",
   "apkUrl": "https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/rotafacil.apk",
-  "notes": "Comprovante de entrega: ao tocar em ENTREGUEI, o app agora tira uma foto e registra local e hora exatos, e pede pra marcar ENTREGUE ou NÃO ENTREGUE (com motivo). Relatório do dia: nova opção na aba 'Conferir pacotes' mostra o resumo de todas as entregas do dia (com fotos) e pode ser compartilhado."
+  "notes": "Corrigido: antes, encerrar a rota apagava tudo na hora sem chance de ver ou mandar o relatório. Agora, ao entregar a última parada, abre uma tela de resumo com opção de ver o relatório completo e compartilhar — 'encerrar e apagar' virou um botão separado, só pra quando você realmente quiser."
 }

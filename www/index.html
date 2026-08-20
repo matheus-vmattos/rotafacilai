@@ -754,6 +754,11 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
 #resume{background:var(--paper);border:2px solid var(--blue);border-radius:20px;padding:18px;margin-bottom:16px}
 #resume .rt{font-weight:800;font-size:18px}
 #resume .rs{color:var(--mut);font-size:13.5px;margin-top:4px;line-height:1.5}
+#doneCard{background:var(--paper);border:2px solid var(--green);border-radius:20px;padding:18px;margin:16px 0}
+#doneCard .rt{font-weight:800;font-size:18px}
+#doneCard .rs{color:var(--mut);font-size:13.5px;margin-top:4px;line-height:1.5}
+#doneScreen{animation:doneIn .35s cubic-bezier(.32,.72,0,1)}
+@keyframes doneIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 
 /* ---- resumo antes de iniciar ---- */
 .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:6px 0 18px}
@@ -1205,6 +1210,21 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
   </div>
 </div>
 
+<!-- ========== ROTA CONCLUÍDA: menu pós-entrega ========== -->
+<div id="doneScreen" class="screen hide">
+  <div class="bname">🎉 Rota concluída!</div>
+  <div class="bsub">Confira o resumo antes de encerrar.</div>
+  <div id="doneCard">
+    <div class="rt">Bom trabalho hoje</div>
+    <div class="rs" id="doneSub">—</div>
+  </div>
+  <button class="btn big cta" id="btnDoneReport">📋 Ver relatório do dia</button>
+  <button class="btn plain" id="btnDoneShare">📤 Compartilhar relatório</button>
+  <button class="btn link" id="btnDoneMap">ver o mapa de novo</button>
+  <div class="spacer"></div>
+  <button class="btn plain" id="btnDoneEnd" style="border-color:var(--red);color:var(--red)">Encerrar e apagar esta rota</button>
+</div>
+
 <!-- ========== RELATÓRIO DO DIA ========== -->
 <div id="rptScreen" class="screen hide">
   <div class="pkTop">
@@ -1474,10 +1494,11 @@ function startApp(){
   }
   const nx=nextStop();
   MAP.setView(nx?[nx.s.lat,nx.s.lng]:[ORIGIN.lat,ORIGIN.lng],16);
-  drawPins();refresh();startWatch();
+  drawPins();refresh();if(nx)startWatch();
   setTimeout(()=>centerOn(nx?[nx.s.lat,nx.s.lng]:[ORIGIN.lat,ORIGIN.lng],16),320);
   setTimeout(()=>MAP.invalidateSize(),160);
   layoutSheet();
+  if(!nx)showDoneScreen(); // rota já tava concluída (ex: reabriu o app depois de terminar sem encerrar)
 }
 function nextStop(){for(let i=0;i<ORDER.length;i++)if(!DONE.has(ORDER[i]))return{i,si:ORDER[i],s:STOPS[ORDER[i]]};return null}
 function setFollow(v){FOLLOW=v;$('#recenter').classList.toggle('on',v);
@@ -1571,8 +1592,8 @@ function refresh(){
     $('#cHood').textContent=`${tot} paradas entregues`
       +((FUEL.price>0&&FUEL.kmPerL>0)?` · ${KM_DRIVEN.toFixed(1)} km rodados · ${fmtBRL(KM_DRIVEN/FUEL.kmPerL*FUEL.price)} em combustível`:'');
     $('#cDist').textContent='';$('#cPk').classList.add('hide');$('.row2').classList.add('hide');
-    $('#btnDone').textContent='ENCERRAR';$('#btnDone').onclick=()=>{wipe();location.reload()};
-    // rota acabou: para o GPS (senão fica gastando bateria até apertar ENCERRAR)
+    $('#btnDone').textContent='VER RESUMO';$('#btnDone').onclick=showDoneScreen;
+    // rota acabou: para o GPS (senão fica gastando bateria até encerrar)
     if(WATCH!==null){navigator.geolocation.clearWatch(WATCH);WATCH=null}
     if(!ROUTE_DONE_SPOKEN){ROUTE_DONE_SPOKEN=true;speak('Rota concluída. Parabéns!')}
     return;
@@ -1684,6 +1705,7 @@ async function dcConfirm(status,reason){
     if(navigator.vibrate)navigator.vibrate([80,60,80]);
   }
   if(SHEETOPEN)renderMore();
+  if(!left)setTimeout(showDoneScreen,1400); // dá tempo do toast/voz da última parada antes de trocar de tela
 }
 $('#btnDcClose').onclick=closeDeliveryCapture;
 $('#btnDcShoot').onclick=dcShoot;
@@ -1737,16 +1759,21 @@ function renderReport(){
       ${rec.hasPhoto?`<button class="rptPhoto" data-si="${si}">📷</button>`:''}</div>`;
   }).filter(Boolean).join('')||'<div class="nohit">Nenhuma entrega registrada ainda</div>';
 }
-function showReport(){$('#pkScreen').classList.add('hide');$('#rptScreen').classList.remove('hide');renderReport()}
-function hideReport(){$('#rptScreen').classList.add('hide');$('#pkScreen').classList.remove('hide')}
-$('#btnOpenReport').onclick=showReport;
+let RPT_FROM='pk'; // pra onde voltar ao sair do relatório: 'pk' (conferir pacotes) ou 'done' (menu pós-entrega)
+function showReport(from){RPT_FROM=from||'pk';
+  $('#pkScreen').classList.add('hide');$('#doneScreen').classList.add('hide');
+  $('#rptScreen').classList.remove('hide');renderReport()}
+function hideReport(){$('#rptScreen').classList.add('hide');
+  $(RPT_FROM==='done'?'#doneScreen':'#pkScreen').classList.remove('hide')}
+$('#btnOpenReport').onclick=()=>showReport('pk');
 $('#btnRptBack').onclick=hideReport;
-$('#btnRptShare').onclick=async()=>{
+async function shareReport(){
   const txt=reportText();
   if(navigator.share){try{await navigator.share({title:'Relatório de entregas',text:txt});return}catch(e){}}
   try{await navigator.clipboard.writeText(txt);toast('Relatório copiado — cole onde quiser',3000)}
   catch(e){toast('Não consegui compartilhar automaticamente',3000)}
-};
+}
+$('#btnRptShare').onclick=shareReport;
 $('#rptList').addEventListener('click',async e=>{
   const b=e.target.closest('.rptPhoto');if(!b)return;
   const blob=await dcLoadPhoto(+b.dataset.si);
@@ -1757,6 +1784,31 @@ $('#rptList').addEventListener('click',async e=>{
   img.onclick=()=>img.remove();
   document.body.appendChild(img);
 });
+
+/* ===================== MENU PÓS-ENTREGA (rota concluída) =====================
+   Antes, tocar em ENCERRAR apagava tudo na hora e voltava pro início sem chance
+   de ver ou mandar o relatório — foi apontado como um problema real por quem
+   usa o app. Agora, terminar a última parada leva pra essa tela intermediária
+   primeiro; "encerrar e apagar" fica separado, como um passo deliberado. */
+function doneSummaryText(){
+  const total=ORDER.length,vals=Object.values(DELIVERY);
+  const ok=vals.filter(d=>d.status==='entregue').length,fail=vals.filter(d=>d.status==='nao_entregue').length;
+  let t=`${ok} entregues${fail?`, ${fail} não entregues`:''} de ${total} paradas`;
+  t+=` · ${KM_DRIVEN.toFixed(1)} km rodados`;
+  if(FUEL.price>0&&FUEL.kmPerL>0)t+=` · ${fmtBRL(KM_DRIVEN/FUEL.kmPerL*FUEL.price)} em combustível`;
+  return t;
+}
+function showDoneScreen(){
+  $('#pkScreen').classList.add('hide');$('#rptScreen').classList.add('hide');$('#app').classList.add('hide');
+  $('#doneSub').textContent=doneSummaryText();
+  $('#doneScreen').classList.remove('hide');
+}
+$('#btnDoneReport').onclick=()=>showReport('done');
+$('#btnDoneShare').onclick=shareReport;
+$('#btnDoneMap').onclick=()=>{$('#doneScreen').classList.add('hide');$('#app').classList.remove('hide');layoutSheet()};
+$('#btnDoneEnd').onclick=()=>{
+  if(confirm('Isso apaga a rota, as entregas e as fotos salvas. Continuar?')){wipe();location.reload()}
+};
 
 /* o mapa precisa saber a altura do card pra centralizar certo */
 function layoutSheet(){
@@ -2071,7 +2123,7 @@ window.addEventListener('resize',layoutSheet);
    (InstallApk) baixa a .apk e abre o instalador do Android — que sempre pede
    confirmação, não tem como pular essa tela. Fora do app nativo (navegador
    comum) essa checagem nem roda. */
-const APP_VERSION_CODE=11; // mantenha igual ao versionCode em android/app/build.gradle
+const APP_VERSION_CODE=12; // mantenha igual ao versionCode em android/app/build.gradle
 (function(){
   if(!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()))return;
   const VERSION_URL='https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/version.json';
