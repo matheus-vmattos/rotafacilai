@@ -1389,7 +1389,7 @@ function refresh(){
     $('#cAddr').textContent='Rota concluída 🎉';
     $('#cHood').textContent=`${tot} paradas entregues`
       +((FUEL.price>0&&FUEL.kmPerL>0)?` · ${KM_DRIVEN.toFixed(1)} km rodados · ${fmtBRL(KM_DRIVEN/FUEL.kmPerL*FUEL.price)} em combustível`:'');
-    $('#cDist').textContent='';$('#cPk').classList.add('hide');
+    $('#cDist').textContent='';$('#cPk').classList.add('hide');$('.row2').classList.add('hide');
     $('#btnDone').textContent='ENCERRAR';$('#btnDone').onclick=()=>{wipe();location.reload()};
     // rota acabou: para o GPS (senão fica gastando bateria até apertar ENCERRAR)
     if(WATCH!==null){navigator.geolocation.clearWatch(WATCH);WATCH=null}
@@ -1399,7 +1399,7 @@ function refresh(){
   const s=nx.s,multi=s.pkgs.length>1;
   const dist=MEPOS?hav(MEPOS,s):null, chegou=dist!==null&&dist<=R_CHEGADA;
 
-  $('#cPk').classList.remove('hide');
+  $('#cPk').classList.remove('hide');$('.row2').classList.remove('hide');
   $('#cChip').textContent='PARADA '+SEQ[nx.si];
   $('#cChip').className='chip'+(chegou?' g':'');
   const delay=(LASTLEG&&LASTLEG.si===nx.si&&!chegou)?LASTLEG.delayMin:0;

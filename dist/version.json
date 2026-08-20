@@ -1,6 +1,6 @@
 {
-  "versionCode": 6,
-  "versionName": "0.4.1",
+  "versionCode": 7,
+  "versionName": "0.4.2",
   "apkUrl": "https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/rotafacil.apk",
-  "notes": "Corrigido o bug de verdade por trás da 'parada virou 51': o número de cada parada agora é fixo (atribuído uma vez) e não muda mais quando alguém pula uma parada. Antes, pular a parada 1 fazia TODAS as outras renumerarem sozinhas."
+  "notes": "Achado num simulado completo (do scan até a última entrega): na tela de 'Rota concluída', os botões 'Abrir no Waze' e 'Pular parada' continuavam aparecendo por engano. Corrigido."
 }
