@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover,interactive-widget=resizes-content">
 <title>Rota Fácil</title>
 <meta name="theme-color" content="#0B0F14">
 <meta name="mobile-web-app-capable" content="yes">
@@ -760,6 +760,13 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
 .kpi span{font-size:10.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.6px;font-weight:700}
 .saveline{background:#E9F7EF;color:var(--green2);border-radius:14px;padding:13px 15px;font-size:13.5px;font-weight:700;line-height:1.5}
 
+.fuelBox{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:14px;margin:2px 0 16px}
+.fuelRow{display:flex;gap:10px}
+.fuelRow label{flex:1;font-size:10.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
+.fuelRow input{display:block;width:100%;margin-top:6px;font-size:16px;font-weight:700;padding:11px;
+  border:1.5px solid var(--line);border-radius:11px;color:var(--ink);background:var(--paper)}
+.fuelRow input:focus{outline:0;border-color:var(--blue)}
+
 /* ============ APP: MAPA EM TELA CHEIA ============ */
 #app{position:fixed;inset:0;z-index:50}
 #map{position:absolute;inset:0}
@@ -809,7 +816,7 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
 #sheet{position:absolute;left:0;right:0;bottom:0;z-index:700;background:var(--paper);
   border-radius:26px 26px 0 0;box-shadow:0 -8px 40px rgba(11,15,20,.22);
   transition:transform .32s cubic-bezier(.32,.72,0,1);will-change:transform;
-  max-height:88dvh;display:flex;flex-direction:column}
+  max-height:88vh;max-height:88dvh;display:flex;flex-direction:column}
 #sheet.up{transform:translateY(0)}
 .grip{padding:9px 0 3px;display:flex;justify-content:center;flex:0 0 auto}
 .grip i{width:42px;height:5px;border-radius:3px;background:#D3DAE4;display:block}
@@ -891,6 +898,9 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
 #bauBanner.warn .bb-setor{color:var(--red);opacity:1}
 #bauBanner.info{background:#EEF2F7;color:var(--mut)}
 #bauBanner.info .bb-setor{color:var(--mut)}
+#bauBanner.idle{background:#F5F7FA;border:1.5px dashed #C8D0DC;color:var(--mut)}
+#bauBanner.idle .bb-setor{color:var(--mut);opacity:1}
+#bauBanner.idle .bb-pilha{font-weight:700}
 
 /* toast + loading */
 #toast{position:fixed;left:50%;bottom:calc(30px + var(--safe));transform:translateX(-50%) translateY(160px);
@@ -904,8 +914,10 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
 #load p{font-weight:700;color:var(--mut);font-size:15px}
 
 /* ---- aba: conferir pacotes ---- */
-.pkTop{display:flex;align-items:center;gap:12px}
-.pkTopTitle{font-size:20px;font-weight:800}
+.pkTop{display:flex;align-items:center;gap:10px}
+.pkTop .iconbtn{flex:0 0 auto}
+.pkTopTitle{font-size:20px;font-weight:800;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pkTop .btn.link{flex:0 0 auto;width:auto;white-space:nowrap;margin-top:0}
 .pkStats{margin:12px 0 4px;color:var(--mut);font-size:13.5px;font-weight:700}
 .pkrow{display:flex;align-items:flex-start;gap:11px;padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer}
 .pkrow .n{flex:0 0 32px;height:32px;border-radius:10px;background:#EEF2F7;color:var(--mut);font-weight:800;
@@ -961,6 +973,13 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
     <div class="kpi"><b id="kPkgs">0</b><span>pacotes</span></div>
     <div class="kpi"><b id="kKm">0</b><span>km</span></div>
   </div>
+  <div class="fuelBox">
+    <div class="fuelRow">
+      <label>Preço do litro<input id="fuelPrice" inputmode="decimal" placeholder="R$ 0,00"></label>
+      <label>Km por litro<input id="fuelKmL" inputmode="decimal" placeholder="0,0"></label>
+    </div>
+    <div id="fuelEst" class="pkStats" style="margin:10px 0 0">Preenche pra ver o custo estimado da rota</div>
+  </div>
   <div class="saveline" id="bSave">✓ A rota fica salva. Se fechar o app, você volta de onde parou.</div>
   <div class="spacer"></div>
   <button class="btn big green" id="btnToBau">CARREGAR O BAÚ ▸</button>
@@ -969,25 +988,27 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
 
 <!-- ========== 2.5 CARREGAR O BAÚ (SCAN) ========== -->
 <div id="scBau" class="screen hide">
-  <div class="brand">
-    <div class="blogo"><svg viewBox="0 0 24 24" fill="#fff"><path d="M5 18 L12 4 L19 18 L12 15 Z"/></svg></div>
-    <div><div class="bname">Carregar o baú</div></div>
+  <div class="pkTop">
+    <button class="iconbtn" id="btnBauBack" aria-label="voltar"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <div class="pkTopTitle">Carregar o baú</div>
+    <button class="btn link" id="btnBauSkip" style="padding:8px 2px">pular</button>
   </div>
-  <div class="bsub">Pegue um pacote qualquer da pilha e escaneie. O app diz onde guardar.</div>
-  <button class="btn link" id="btnBauSkip" style="align-self:flex-start;padding-left:0">pular esta etapa</button>
+  <div class="bsub" style="margin-top:8px">Pegue um pacote qualquer da pilha e escaneie. O app diz onde guardar.</div>
 
-  <div id="bauProg" class="saveline" style="background:#EFF4FF;color:#2C3E6B">0 de 0 pacotes carregados</div>
+  <div id="bauProg" class="pkStats">0 de 0 pacotes carregados</div>
 
-  <div id="bauBanner" class="hide"></div>
+  <div id="bauBanner" class="idle">
+    <div class="bb-setor">📦 pronto pra começar</div>
+    <div class="bb-pilha" style="font-size:17px">escaneie ou digite os últimos dígitos</div>
+  </div>
 
-  <div class="srch">
+  <div class="srch" style="margin-top:14px">
     <input id="bauInput" maxlength="15" placeholder="últimos dígitos" autocomplete="off">
     <button id="bauScanBtn" aria-label="escanear"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M7 12h10"/></svg></button>
   </div>
 
-  <div class="spacer"></div>
-  <div id="bauNote" class="note hide"></div>
-  <button class="btn big green" id="btnBauDone">PRONTO — INICIAR ROTA ▸</button>
+  <div id="bauNote" class="note hide" style="margin-top:16px"></div>
+  <button class="btn big green" id="btnBauDone" style="margin-top:18px">PRONTO — INICIAR ROTA ▸</button>
 </div>
 
 <!-- ========== 3. APP ========== -->
@@ -1065,6 +1086,16 @@ let MAP=null,PINS=null,LINE=null,MEMARK=null,MEPOS=null,HEAD=0,FOLLOW=true,WATCH
 let ARRIVED=null,LASTROUTE=null,SHEETOPEN=false;
 let SCANNED=new Set();
 let LASTLEG=null; // {si, delayMin} — trânsito do trecho até a próxima parada
+let KM_DRIVEN=0; // km realmente rodados (GPS), pra estimar gasto de combustível
+let ACTIVE_SCAN_STOP=null; // função que fecha a câmera do leitor, se estiver aberta
+
+/* preço do litro e consumo do carro — fica salvo separado da rota (é do
+   veículo, não muda a cada planilha importada) */
+const FUEL_LS='rotafacil.fuel';
+let FUEL={price:0,kmPerL:0};
+(function(){try{const f=JSON.parse(localStorage.getItem(FUEL_LS)||'null');if(f)FUEL=f}catch(e){}})();
+function saveFuel(){try{localStorage.setItem(FUEL_LS,JSON.stringify(FUEL))}catch(e){}}
+function fmtBRL(v){return 'R$ '+v.toFixed(2).replace('.',',')}
 
 /* Chave da TomTom Routing API (trânsito ao vivo). Sem chave, o app cai
    automaticamente pro OSRM (sem trânsito) e depois linha reta — nada
@@ -1091,7 +1122,7 @@ function fmtD(km){return km<1?Math.round(km*1000)+' m':km.toFixed(1)+' km'}
 
 /* ===================== PERSISTÊNCIA ===================== */
 const LS='rotafacil.v5';
-function save(){try{localStorage.setItem(LS,JSON.stringify({ts:Date.now(),STOPS,ORDER,ORIGIN,TAIL,KM,KM_RAW,DONE:[...DONE],SCANNED:[...SCANNED]}))}catch(e){}}
+function save(){try{localStorage.setItem(LS,JSON.stringify({ts:Date.now(),STOPS,ORDER,ORIGIN,TAIL,KM,KM_RAW,DONE:[...DONE],SCANNED:[...SCANNED],KM_DRIVEN}))}catch(e){}}
 function restore(){try{return JSON.parse(localStorage.getItem(LS)||'null')}catch(e){return null}}
 function wipe(){try{localStorage.removeItem(LS)}catch(e){}}
 
@@ -1172,7 +1203,7 @@ async function fetchLeg(a,b){
 
 /* ===================== CONSTRUIR ===================== */
 async function build(stops){
-  STOPS=stops;DONE=new Set();SCANNED=new Set();if(!STOPS.length)return toast('Nenhuma parada válida');
+  STOPS=stops;DONE=new Set();SCANNED=new Set();KM_DRIVEN=0;if(!STOPS.length)return toast('Nenhuma parada válida');
   TAIL=calcTail(STOPS.flatMap(s=>s.pkgs));
   load(true,'localizando você…');ORIGIN=await getOrigin();
   const pts=[ORIGIN,...STOPS];let D;
@@ -1197,7 +1228,17 @@ function showBrief(){
   $('#bSave').innerHTML=KM_RAW>KM
     ? `✓ Ordem da planilha: <b>${KM_RAW.toFixed(1)} km</b> → sua rota: <b>${KM.toFixed(1)} km</b>`
     : '✓ A rota fica salva. Se fechar o app, você volta de onde parou.';
+  $('#fuelPrice').value=FUEL.price||'';$('#fuelKmL').value=FUEL.kmPerL||'';
+  updateFuelEst();
 }
+function updateFuelEst(){
+  const el=$('#fuelEst');if(!el)return;
+  el.textContent=(FUEL.price>0&&FUEL.kmPerL>0)
+    ? `Custo estimado da rota: ${fmtBRL(KM/FUEL.kmPerL*FUEL.price)}`
+    : 'Preenche pra ver o custo estimado da rota';
+}
+$('#fuelPrice').oninput=e=>{FUEL.price=parseFloat(e.target.value.replace(',','.'))||0;saveFuel();updateFuelEst()};
+$('#fuelKmL').oninput=e=>{FUEL.kmPerL=parseFloat(e.target.value.replace(',','.'))||0;saveFuel();updateFuelEst()};
 
 /* ===================== APP / MAPA ===================== */
 function startApp(){
@@ -1251,6 +1292,9 @@ function startWatch(){
     const nw={lat:p.coords.latitude,lng:p.coords.longitude};
     if(p.coords.heading!=null&&!isNaN(p.coords.heading))HEAD=p.coords.heading;
     else if(MEPOS&&hav(MEPOS,nw)>0.008)HEAD=bearing(MEPOS,nw);
+    // soma km rodado de verdade (pro gasto de combustível), ignorando ruído
+    // de GPS parado (<5m) e saltos absurdos (>500m entre dois pontos)
+    if(MEPOS){const d=hav(MEPOS,nw);if(d>0.005&&d<0.5)KM_DRIVEN+=d}
     MEPOS=nw;drawMe();if(FOLLOW)centerOn([nw.lat,nw.lng]);
     refresh();maybeLeg();
   },()=>{},{enableHighAccuracy:true,maximumAge:1500,timeout:20000})}catch(e){}
@@ -1423,7 +1467,10 @@ function renderPkFull(filter){
   $('#pkFullList').innerHTML=rows.join('')||'<div class="nohit">Nenhum pacote encontrado</div>';
 }
 function updatePkStats(){
-  $('#pkStats').textContent=`${DONE.size} de ${ORDER.length} paradas entregues · ${bauTotal()} pacotes no total`;
+  let t=`${DONE.size} de ${ORDER.length} paradas entregues · ${bauTotal()} pacotes no total`;
+  if(FUEL.price>0&&FUEL.kmPerL>0)
+    t+=` · ${fmtBRL(KM_DRIVEN/FUEL.kmPerL*FUEL.price)} em combustível (${KM_DRIVEN.toFixed(1)} km rodados)`;
+  $('#pkStats').textContent=t;
 }
 function showPkScreen(){$('#pkScreen').classList.remove('hide');$('#pkQ').value='';renderPkFull('');updatePkStats()}
 function hidePkScreen(){$('#pkScreen').classList.add('hide')}
@@ -1458,7 +1505,8 @@ async function scanBarcode(cb){
     const v=document.createElement('video');v.srcObject=st;v.playsInline=true;await v.play();
     v.style.cssText='position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:2500';
     document.body.appendChild(v);
-    const stop=()=>{clearInterval(iv);st.getTracks().forEach(t=>t.stop());v.remove()};
+    const stop=()=>{clearInterval(iv);st.getTracks().forEach(t=>t.stop());v.remove();ACTIVE_SCAN_STOP=null};
+    ACTIVE_SCAN_STOP=stop;
     const iv=setInterval(async()=>{try{const b=await det.detect(v);
       if(b.length){stop();cb(b[0].rawValue);if(navigator.vibrate)navigator.vibrate(110)}}catch(e){}},350);
     v.onclick=stop;
@@ -1510,8 +1558,12 @@ function registerScan(raw){
   if(!already){speak(`${nm}. Pilha ${pl.pilha}.`);if(navigator.vibrate)navigator.vibrate(60)}
   $('#bauInput').value='';
 }
+function resetBauBanner(){const b=$('#bauBanner');b.className='idle';
+  b.innerHTML='<div class="bb-setor">📦 pronto pra começar</div><div class="bb-pilha" style="font-size:17px">escaneie ou digite os últimos dígitos</div>'}
 function showBau(){$('#scBrief').classList.add('hide');$('#scBau').classList.remove('hide');
-  updateBauUI();setTimeout(()=>$('#bauInput').focus(),300)}
+  resetBauBanner();updateBauUI();setTimeout(()=>$('#bauInput').focus(),300)}
+function backToBrief(){$('#scBau').classList.add('hide');$('#scBrief').classList.remove('hide')}
+function backToImport(){$('#scBrief').classList.add('hide');$('#scImport').classList.remove('hide')}
 let bauDeb=null;
 $('#bauInput').oninput=e=>{clearTimeout(bauDeb);const v=e.target.value;
   bauDeb=setTimeout(()=>{if(v.replace(/[^A-Za-z0-9]/g,'').length>=3)registerScan(v)},450)};
@@ -1521,6 +1573,7 @@ $('#btnToBau').onclick=showBau;
 $('#btnSkipBau').onclick=startApp;
 $('#btnBauSkip').onclick=startApp;
 $('#btnBauDone').onclick=startApp;
+$('#btnBauBack').onclick=backToBrief;
 
 /* rota salva */
 (function(){const s=restore();if(!s||!s.STOPS||!s.STOPS.length)return;
@@ -1530,7 +1583,8 @@ $('#btnBauDone').onclick=startApp;
   $('#rsub').innerHTML=`${t} paradas · <b>${f} entregues</b>, faltam <b>${t-f}</b><br>salva ${hoje?'hoje':d.getDate()+'/'+(d.getMonth()+1)} às ${hh}`;
   $('#resume').classList.remove('hide');
   $('#btnResume').onclick=()=>{STOPS=s.STOPS;ORDER=s.ORDER;ORIGIN=s.ORIGIN;TAIL=s.TAIL||5;
-    KM=s.KM||0;KM_RAW=s.KM_RAW||0;DONE=new Set(s.DONE||[]);SCANNED=new Set(s.SCANNED||[]);startApp();toast('Voltamos de onde você parou')};
+    KM=s.KM||0;KM_RAW=s.KM_RAW||0;DONE=new Set(s.DONE||[]);SCANNED=new Set(s.SCANNED||[]);
+    KM_DRIVEN=s.KM_DRIVEN||0;startApp();toast('Voltamos de onde você parou')};
   $('#btnNova').onclick=()=>{if(confirm('Isso apaga a rota salva. Continuar?')){wipe();$('#resume').classList.add('hide')}};
 })();
 
@@ -1550,6 +1604,33 @@ const DEMO=[
 ["Rua Bela Paisagem, 19","Porto Novo","Saquarema","28991-260",-22.926331,-42.481043,["BR264864344471X"]]];
 $('#btnDemo').onclick=()=>build(DEMO.map(d=>({addr:d[0],hood:d[1],city:d[2],cep:d[3],lat:d[4],lng:d[5],pkgs:d[6]})));
 window.addEventListener('resize',layoutSheet);
+
+/* ===================== BOTÃO FÍSICO DE VOLTAR (Android) =====================
+   Dentro do app instalado (Capacitor), o botão de voltar do Android por
+   padrão fecha o app direto se não tem "histórico" — como aqui é tudo uma
+   página só, isso significa sair do app sem querer de qualquer tela. Aqui
+   a gente assume o controle: volta um passo por vez pelas telas/abas
+   abertas, e só sai de verdade se apertar 2x na tela inicial ou no mapa. */
+let LAST_BACK=0;
+function handleBack(){
+  if(ACTIVE_SCAN_STOP){ACTIVE_SCAN_STOP();return}
+  if(!$('#pkScreen').classList.contains('hide')){hidePkScreen();return}
+  if(SHEETOPEN){closeSheet();return}
+  if(!$('#scBau').classList.contains('hide')){backToBrief();return}
+  if(!$('#scBrief').classList.contains('hide')){backToImport();return}
+  const now=Date.now();
+  if(now-LAST_BACK<2000){
+    const App=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App;
+    if(App&&App.exitApp)App.exitApp();
+    return;
+  }
+  LAST_BACK=now;toast('Toque voltar de novo pra sair',1800);
+}
+(function(){
+  if(!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()))return;
+  const App=window.Capacitor.Plugins&&window.Capacitor.Plugins.App;
+  if(App&&App.addListener)App.addListener('backButton',handleBack);
+})();
 </script>
 </body>
 </html>

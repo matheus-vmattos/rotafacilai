@@ -1,6 +1,6 @@
 {
-  "versionCode": 2,
-  "versionName": "0.2.0",
+  "versionCode": 3,
+  "versionName": "0.3.0",
   "apkUrl": "https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/rotafacil.apk",
-  "notes": "Aba 'Conferir pacotes' (sempre acessível) + trânsito ao vivo no próximo trecho (via TomTom, com fallback automático)."
+  "notes": "Navegação: botão físico de voltar funciona de verdade, tela de carregar o baú reformulada (com botão voltar e sem espaço vazio esquisito). Custo estimado de combustível (preço do litro + km/l) na tela de resumo e ao vivo na aba de pacotes."
 }
