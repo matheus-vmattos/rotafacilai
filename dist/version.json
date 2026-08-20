@@ -1,6 +1,6 @@
 {
-  "versionCode": 5,
-  "versionName": "0.4.0",
+  "versionCode": 6,
+  "versionName": "0.4.1",
   "apkUrl": "https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/rotafacil.apk",
-  "notes": "Corrigido o bug real da busca de pacote (achava ambíguo por engano quando os dígitos apareciam no meio de outro código). Fala em voz alta ao chegar na parada e ao concluir a rota. GPS para sozinho quando a rota termina. Aviso quando a localização inicial falha. Resumo de combustível ao final da rota. Botão de ajuda (?) explicando o app. Otimizador protegido contra travar em rotas muito grandes."
+  "notes": "Corrigido o bug de verdade por trás da 'parada virou 51': o número de cada parada agora é fixo (atribuído uma vez) e não muda mais quando alguém pula uma parada. Antes, pular a parada 1 fazia TODAS as outras renumerarem sozinhas."
 }

@@ -1147,6 +1147,14 @@ let LASTLEG=null; // {si, delayMin} — trânsito do trecho até a próxima para
 let KM_DRIVEN=0; // km realmente rodados (GPS), pra estimar gasto de combustível
 let ACTIVE_SCAN_STOP=null; // função que fecha a câmera do leitor, se estiver aberta
 let ROUTE_DONE_SPOKEN=false;
+/* número fixo de cada parada (si -> "parada N"), atribuído uma única vez
+   ao montar a rota. NÃO é a posição no array ORDER: essa posição muda
+   toda vez que uma parada é pulada (vai pro fim), e se o número mostrado
+   fosse a posição, TODAS as paradas depois dela renumerariam sozinhas —
+   foi exatamente isso que confundiu um motorista numa rota real ("virou
+   parada 51, depois a próxima virou 5 sozinha"). Com SEQ, uma parada é
+   sempre o mesmo número do início ao fim do dia, pulada ou não. */
+let SEQ={};
 
 /* preço do litro e consumo do carro — fica salvo separado da rota (é do
    veículo, não muda a cada planilha importada) */
@@ -1181,7 +1189,7 @@ function fmtD(km){return km<1?Math.round(km*1000)+' m':km.toFixed(1)+' km'}
 
 /* ===================== PERSISTÊNCIA ===================== */
 const LS='rotafacil.v5';
-function save(){try{localStorage.setItem(LS,JSON.stringify({ts:Date.now(),STOPS,ORDER,ORIGIN,TAIL,KM,KM_RAW,DONE:[...DONE],SCANNED:[...SCANNED],KM_DRIVEN}))}catch(e){}}
+function save(){try{localStorage.setItem(LS,JSON.stringify({ts:Date.now(),STOPS,ORDER,ORIGIN,TAIL,KM,KM_RAW,DONE:[...DONE],SCANNED:[...SCANNED],KM_DRIVEN,SEQ}))}catch(e){}}
 function restore(){try{return JSON.parse(localStorage.getItem(LS)||'null')}catch(e){return null}}
 function wipe(){try{localStorage.removeItem(LS)}catch(e){}}
 
@@ -1268,7 +1276,7 @@ async function fetchLeg(a,b){
 
 /* ===================== CONSTRUIR ===================== */
 async function build(stops){
-  STOPS=stops;DONE=new Set();SCANNED=new Set();KM_DRIVEN=0;ROUTE_DONE_SPOKEN=false;if(!STOPS.length)return toast('Nenhuma parada válida');
+  STOPS=stops;DONE=new Set();SCANNED=new Set();KM_DRIVEN=0;ROUTE_DONE_SPOKEN=false;BAUPLAN=null;if(!STOPS.length)return toast('Nenhuma parada válida');
   TAIL=calcTail(STOPS.flatMap(s=>s.pkgs));
   load(true,'localizando você…');ORIGIN=await getOrigin();
   if(ORIGIN.fallback)toast('Não consegui pegar sua localização — a rota foi calculada a partir da 1ª parada da planilha',4500);
@@ -1277,6 +1285,7 @@ async function build(stops){
   try{D=await osrmTable(pts)}catch(e){D=mtx(pts)}
   load(true,'montando a melhor sequência…');
   ORDER=opt(D).slice(1).map(i=>i-1);
+  SEQ={};ORDER.forEach((si,i)=>SEQ[si]=i+1);
   KM=plen(D,[0,...ORDER.map(i=>i+1)]);KM_RAW=plen(D,[0,...STOPS.map((_,i)=>i+1)]);
   save();load(false);showBrief();
 }
@@ -1336,8 +1345,8 @@ function drawPins(){
     const cls=done?'done':(isNext?'next':(soon?'soon':''));
     const sz=done?22:(isNext?40:30);
     L.marker([s.lat,s.lng],{zIndexOffset:isNext?1000:(done?0:200),
-      icon:L.divIcon({className:'',html:`<div class="pin ${cls}">${pos+1}</div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]})})
-      .on('click',()=>{toast(`Parada ${pos+1} · pacote ${s.pkgs.map(p=>p.slice(-TAIL)).join(', ')}`,3200)})
+      icon:L.divIcon({className:'',html:`<div class="pin ${cls}">${SEQ[si]}</div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]})})
+      .on('click',()=>{toast(`Parada ${SEQ[si]} · pacote ${s.pkgs.map(p=>p.slice(-TAIL)).join(', ')}`,3200)})
       .addTo(PINS)});
   drawMe();
 }
@@ -1403,7 +1412,7 @@ function refresh(){
   const dist=MEPOS?hav(MEPOS,s):null, chegou=dist!==null&&dist<=R_CHEGADA;
 
   $('#cPk').classList.remove('hide');
-  $('#cChip').textContent='PARADA '+(nx.i+1);
+  $('#cChip').textContent='PARADA '+SEQ[nx.si];
   $('#cChip').className='chip'+(chegou?' g':'');
   const delay=(LASTLEG&&LASTLEG.si===nx.si&&!chegou)?LASTLEG.delayMin:0;
   $('#cDist').textContent=dist===null?'buscando GPS…':fmtD(dist)+(delay>0?` · +${delay} min trânsito`:'');
@@ -1466,7 +1475,7 @@ function renderMore(){
   const nx=nextStop();
   $('#nextList').innerHTML=ORDER.map((si,pos)=>{const s=STOPS[si],d=DONE.has(si);
     return `<div class="nx${d?' d':''}" data-p="${pos}">
-      <div class="n">${d?'✓':pos+1}</div>
+      <div class="n">${d?'✓':SEQ[si]}</div>
       <div class="a">${esc(s.addr)}</div>
       <div class="c mono">${esc(s.pkgs[0].slice(-TAIL))}${s.pkgs.length>1?`<b> +${s.pkgs.length-1}</b>`:''}</div>
     </div>`}).join('');
@@ -1479,7 +1488,7 @@ function renderMore(){
       if(k!==cur){cur=k;html+=`<div class="setor ${k}">${nm}</div>`}
       html+=`<div class="bau"><div class="o">${got?'✓':pl.pilha}</div>
         <div class="k mono"><i>${esc(p.slice(0,-TAIL))}</i>${esc(p.slice(-TAIL))}</div>
-        <div class="p">parada<b>${pos+1}</b></div></div>`})});
+        <div class="p">parada<b>${SEQ[si]}</b></div></div>`})});
   $('#bauList').innerHTML=html;
 }
 function allPk(){const o=[];ORDER.forEach((si,pos)=>STOPS[si].pkgs.forEach(p=>o.push({p,si,pos})));return o}
@@ -1502,23 +1511,29 @@ function doSearch(v){
   const h=searchPkgs(q);
   if(!h.length){r.innerHTML=`<div class="nohit">Nenhum pacote “${esc(q)}” nesta rota</div>`;return}
   const x=h[0],s=STOPS[x.si],d=DONE.has(x.si);
-  r.innerHTML=`<div class="hit"><div class="n" style="${d?'background:#16A34A':''}">${x.pos+1}</div>
+  r.innerHTML=`<div class="hit"><div class="n" style="${d?'background:#16A34A':''}">${SEQ[x.si]}</div>
     <div class="t"><b>${esc(s.addr)}</b><span>${d?'✅ já entregue':esc([s.hood,s.city].filter(Boolean).join(' · '))}</span></div></div>
     ${h.length>1?`<div style="text-align:center;color:#7A8698;font-size:12px;margin-top:7px">${h.length} pacotes batem — digite mais um dígito</div>`:''}`;
-  r.querySelector('.hit').onclick=()=>{ if(MAP){setFollow(false);closeSheet();setTimeout(()=>centerOn([s.lat,s.lng],17),340)} toast('Parada '+(x.pos+1)+' no mapa') };
+  r.querySelector('.hit').onclick=()=>{ if(MAP){setFollow(false);closeSheet();setTimeout(()=>centerOn([s.lat,s.lng],17),340)} toast('Parada '+SEQ[x.si]+' no mapa') };
 }
 
 /* ===================== BAÚ (posição de cada pacote) =====================
    "pilha" = posição do pacote dentro do seu setor (porta/meio/fundo),
-   contada na ordem de carregamento (da última parada pra primeira). É
-   estática — não depende da ordem em que a pessoa escaneia. */
+   contada na ordem de carregamento (da última parada pra primeira).
+   Calculado UMA VEZ (cache em BAUPLAN, zerado só em build()) e não a
+   cada chamada — senão, um "pular parada" no meio do dia reordenaria
+   ORDER e alguns pacotes trocariam de setor sozinhos, depois de já
+   anunciados/guardados no lugar errado segundo o novo cálculo. */
+let BAUPLAN=null;
 function bauPlan(){
+  if(BAUPLAN)return BAUPLAN;
   const out=new Map(),counts={porta:0,meio:0,fundo:0};
   [...ORDER].map((si,pos)=>({si,pos})).reverse().forEach(({si,pos})=>{
     const s=STOPS[si],f=pos/ORDER.length,sector=f<=1/3?'porta':(f<=2/3?'meio':'fundo');
     counts[sector]++;
     s.pkgs.forEach(p=>out.set(p,{sector,pilha:counts[sector],addr:s.addr,si,pos}));
   });
+  BAUPLAN=out;
   return out;
 }
 function pkgLoc(p){const pl=bauPlan().get(p);if(!pl)return'';
@@ -1546,7 +1561,7 @@ function renderPkFull(filter){
     s.pkgs.forEach(p=>{
       if(filter&&!normCode(p).includes(filter))return;
       const pl=plan.get(p),nm={porta:'porta',meio:'meio',fundo:'fundo'}[pl.sector];
-      rows.push(`<div class="pkrow${done?' d':''}" data-si="${si}"><div class="n">${done?'✓':pos+1}</div>
+      rows.push(`<div class="pkrow${done?' d':''}" data-si="${si}"><div class="n">${done?'✓':SEQ[si]}</div>
         <div class="info"><div class="a">${esc(s.addr)}</div>
         <div class="loc">${esc(p.slice(0,-TAIL))}<b>${esc(p.slice(-TAIL))}</b> · ${nm} do baú, pilha ${pl.pilha}</div></div></div>`);
     });
@@ -1673,7 +1688,9 @@ $('#btnHelpBack').onclick=()=>{$('#scHelp').classList.add('hide');$('#scImport')
   $('#resume').classList.remove('hide');
   $('#btnResume').onclick=()=>{STOPS=s.STOPS;ORDER=s.ORDER;ORIGIN=s.ORIGIN;TAIL=s.TAIL||5;
     KM=s.KM||0;KM_RAW=s.KM_RAW||0;DONE=new Set(s.DONE||[]);SCANNED=new Set(s.SCANNED||[]);
-    KM_DRIVEN=s.KM_DRIVEN||0;startApp();toast('Voltamos de onde você parou')};
+    KM_DRIVEN=s.KM_DRIVEN||0;
+    SEQ=s.SEQ||{};if(!s.SEQ)ORDER.forEach((si,i)=>SEQ[si]=i+1); // rota salva antes desta correção
+    startApp();toast('Voltamos de onde você parou')};
   $('#btnNova').onclick=()=>{if(confirm('Isso apaga a rota salva. Continuar?')){wipe();$('#resume').classList.add('hide')}};
 })();
 
@@ -1700,7 +1717,7 @@ window.addEventListener('resize',layoutSheet);
    (InstallApk) baixa a .apk e abre o instalador do Android — que sempre pede
    confirmação, não tem como pular essa tela. Fora do app nativo (navegador
    comum) essa checagem nem roda. */
-const APP_VERSION_CODE=5; // mantenha igual ao versionCode em android/app/build.gradle
+const APP_VERSION_CODE=6; // mantenha igual ao versionCode em android/app/build.gradle
 (function(){
   if(!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()))return;
   const VERSION_URL='https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/version.json';
