@@ -1370,7 +1370,9 @@ function deliver(si){
 }
 function skip(i){
   const si=ORDER[i];ORDER.splice(i,1);ORDER.push(si);LASTROUTE=null;save();
-  drawPins();refresh();maybeLeg();toast('Parada foi para o fim da rota');
+  drawPins();refresh();maybeLeg();
+  toast('Parada pulada — ela volta no fim da rota, é a última que você vai entregar hoje',4200);
+  speak('Parada pulada. Ela volta no fim da rota.');
 }
 /* o mapa precisa saber a altura do card pra centralizar certo */
 function layoutSheet(){
