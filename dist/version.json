@@ -1,6 +1,6 @@
 {
-  "versionCode": 10,
-  "versionName": "0.7.0",
+  "versionCode": 11,
+  "versionName": "0.8.0",
   "apkUrl": "https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/rotafacil.apk",
-  "notes": "Ver a rota inteira: novo botão no mapa mostra uma linha ligando todas as paradas que faltam, não só a próxima. Adiantar parada: na aba 'Conferir pacotes', toque em 'fazer agora' em qualquer parada pra pular direto pra ela, sem precisar pular uma por uma. Aviso de rota em linha reta: se o app não conseguir calcular a ordem por rua (sem sinal), agora ele avisa e tem um botão pra tentar de novo depois."
+  "notes": "Comprovante de entrega: ao tocar em ENTREGUEI, o app agora tira uma foto e registra local e hora exatos, e pede pra marcar ENTREGUE ou NÃO ENTREGUE (com motivo). Relatório do dia: nova opção na aba 'Conferir pacotes' mostra o resumo de todas as entregas do dia (com fotos) e pode ser compartilhado."
 }

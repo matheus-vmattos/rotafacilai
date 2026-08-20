@@ -743,6 +743,8 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
 .btn.big{font-size:21px;padding:23px;border-radius:20px}
 .btn.green{background:var(--green);box-shadow:0 6px 18px rgba(22,163,74,.28)}
 .btn.green:active{background:var(--green2)}
+.btn.red{background:var(--red);box-shadow:0 6px 18px rgba(220,38,38,.28)}
+.btn.red:active{background:#B91C1C}
 .btn.plain{background:var(--paper);color:var(--ink);box-shadow:none;border:1.5px solid var(--line);font-size:16px;padding:16px}
 .btn.link{background:none;box-shadow:none;color:var(--mut);font-size:14px;font-weight:600;padding:12px;text-decoration:underline}
 
@@ -820,6 +822,7 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
   background:#94A3B8}
 .pin.next{background:var(--blue);width:40px;height:40px;font-size:16px;border-width:3px}
 .pin.done{background:#CBD5E1;color:#64748B;width:22px;height:22px;font-size:10px;border-width:2px}
+.pin.failed{background:#FCA5A5;color:#7F1D1D;width:22px;height:22px;font-size:10px;border-width:2px}
 .pin.soon{background:var(--ink2)}
 .leaflet-div-icon{background:none;border:0}
 
@@ -942,6 +945,29 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
   font-size:11px;font-weight:800;line-height:1.25;text-align:center;border-radius:11px;padding:9px 10px;width:auto}
 .pkrow .loc{font-size:12.5px;color:var(--mut);font-weight:600;margin-top:3px}
 .pkrow .loc b{color:var(--ink);font-weight:800;font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace}
+.pkrow.f .n{background:#FEECEC;color:var(--red)}
+.pkrow.f .a{color:var(--mut);text-decoration:line-through}
+
+/* comprovante de entrega (foto + local + hora) */
+#dcCam{position:relative;border-radius:20px;overflow:hidden;background:#000;aspect-ratio:3/4;margin:14px 0}
+#dcCam video,#dcCam img{width:100%;height:100%;object-fit:cover;display:block}
+#dcMeta{font-size:12.5px;color:var(--mut);font-weight:700;text-align:center;margin:0 0 10px}
+.dcRow2{display:flex;gap:10px;margin-top:12px}
+.dcRow2 .btn{margin-top:0}
+.reasonRow{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.reasonChip{background:var(--paper);border:1.5px solid var(--line);color:var(--ink);font-weight:700;font-size:13px;padding:10px 14px;border-radius:12px}
+.reasonChip.sel{background:var(--red);border-color:var(--red);color:#fff}
+#dcReasonOther{width:100%;border:1.5px solid var(--line);border-radius:14px;padding:14px;font-size:15px;margin-bottom:12px;background:var(--paper);color:var(--ink)}
+
+/* relatório do dia */
+.rptrow{display:flex;align-items:flex-start;gap:11px;padding:12px 0;border-bottom:1px solid var(--line)}
+.rptrow .n{flex:0 0 32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px}
+.rptrow.ok .n{background:#E9F7EF;color:var(--green)}
+.rptrow.fail .n{background:#FEECEC;color:var(--red)}
+.rptrow .info{flex:1;min-width:0}
+.rptrow .a{font-size:14.5px;font-weight:700;line-height:1.3}
+.rptrow .loc{font-size:12.5px;color:var(--mut);font-weight:600;margin-top:3px}
+.rptPhoto{flex:0 0 auto;background:#EEF2F7;border-radius:11px;padding:8px 11px;font-size:16px}
 </style>
 </head>
 <body>
@@ -1134,7 +1160,49 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
   <div class="srch" style="margin-top:16px"><input id="pkQ" maxlength="15" placeholder="buscar por últimos dígitos" autocomplete="off"></div>
   <div id="pkStats" class="pkStats">—</div>
   <button class="btn plain" id="btnRecalc" style="margin-bottom:10px">🔄 Recalcular a partir daqui</button>
+  <button class="btn plain" id="btnOpenReport" style="margin-bottom:10px">📋 Relatório do dia</button>
   <div id="pkFullList"></div>
+</div>
+
+<!-- ========== COMPROVAR ENTREGA: foto + local + hora ========== -->
+<div id="dcScreen" class="screen hide">
+  <div class="pkTop">
+    <button class="iconbtn" id="btnDcClose" aria-label="cancelar"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <div class="pkTopTitle">Comprovar entrega</div>
+  </div>
+  <div id="dcCam"><video id="dcVideo" playsinline muted autoplay></video><img id="dcPhoto" class="hide"></div>
+  <div id="dcMeta"></div>
+  <button class="btn big cta" id="btnDcShoot">📷 TIRAR FOTO</button>
+  <button class="btn plain hide" id="btnDcSkipPhoto">continuar sem foto (câmera indisponível)</button>
+  <div id="dcAfter" class="hide">
+    <button class="btn plain" id="btnDcRetake">tirar de novo</button>
+    <div class="dcRow2">
+      <button class="btn big green" id="btnDcOk">✓ ENTREGUE</button>
+      <button class="btn big red" id="btnDcFail">✗ NÃO ENTREGUE</button>
+    </div>
+  </div>
+  <div id="dcReasons" class="hide">
+    <div class="mtitle">Motivo</div>
+    <div class="reasonRow">
+      <button class="reasonChip" data-r="Cliente ausente">Cliente ausente</button>
+      <button class="reasonChip" data-r="Endereço não encontrado">Endereço não encontrado</button>
+      <button class="reasonChip" data-r="Recusou receber">Recusou receber</button>
+      <button class="reasonChip" data-r="Outro">Outro motivo</button>
+    </div>
+    <input id="dcReasonOther" class="hide" maxlength="140" placeholder="descreva rapidamente o motivo">
+    <button class="btn big red" id="btnDcConfirmFail">CONFIRMAR NÃO ENTREGUE</button>
+  </div>
+</div>
+
+<!-- ========== RELATÓRIO DO DIA ========== -->
+<div id="rptScreen" class="screen hide">
+  <div class="pkTop">
+    <button class="iconbtn" id="btnRptBack" aria-label="voltar"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <div class="pkTopTitle">Relatório do dia</div>
+  </div>
+  <div id="rptSummary" class="pkStats">—</div>
+  <button class="btn plain" id="btnRptShare" style="margin-bottom:10px">📤 Compartilhar relatório</button>
+  <div id="rptList"></div>
 </div>
 
 <div id="toast"></div>
@@ -1151,6 +1219,10 @@ let KM_DRIVEN=0; // km realmente rodados (GPS), pra estimar gasto de combustíve
 let ACTIVE_SCAN_STOP=null; // função que fecha a câmera do leitor, se estiver aberta
 let ROUTE_DONE_SPOKEN=false;
 let USED_STRAIGHT_LINE=false; // true = a ordem foi calculada em linha reta (sem internet), não por rua
+/* comprovante de cada parada concluída: status, motivo (se não entregue),
+   local e hora. Pequeno, então fica junto do resto da rota salva; a foto
+   em si é grande demais pro localStorage e vive no IndexedDB (dcDB). */
+let DELIVERY={}; // si -> {status:'entregue'|'nao_entregue', reason, lat, lng, ts, hasPhoto}
 /* número fixo de cada parada (si -> "parada N"), atribuído uma única vez
    ao montar a rota. NÃO é a posição no array ORDER: essa posição muda
    toda vez que uma parada é pulada (vai pro fim), e se o número mostrado
@@ -1193,9 +1265,27 @@ function fmtD(km){return km<1?Math.round(km*1000)+' m':km.toFixed(1)+' km'}
 
 /* ===================== PERSISTÊNCIA ===================== */
 const LS='rotafacil.v5';
-function save(){try{localStorage.setItem(LS,JSON.stringify({ts:Date.now(),STOPS,ORDER,ORIGIN,TAIL,KM,KM_RAW,DONE:[...DONE],SCANNED:[...SCANNED],KM_DRIVEN,SEQ}))}catch(e){}}
+function save(){try{localStorage.setItem(LS,JSON.stringify({ts:Date.now(),STOPS,ORDER,ORIGIN,TAIL,KM,KM_RAW,DONE:[...DONE],SCANNED:[...SCANNED],KM_DRIVEN,SEQ,DELIVERY}))}catch(e){}}
 function restore(){try{return JSON.parse(localStorage.getItem(LS)||'null')}catch(e){return null}}
-function wipe(){try{localStorage.removeItem(LS)}catch(e){}}
+function wipe(){try{localStorage.removeItem(LS)}catch(e){}DELIVERY={};dcClearAllPhotos()}
+
+/* fotos dos comprovantes de entrega — grandes demais pro localStorage,
+   então ficam num IndexedDB à parte, uma por parada (si), sobrescrita
+   se o motorista tirar de novo. */
+function dcDB(){return new Promise((res,rej)=>{
+  const rq=indexedDB.open('rotafacil-fotos',1);
+  rq.onupgradeneeded=()=>rq.result.createObjectStore('fotos');
+  rq.onsuccess=()=>res(rq.result);rq.onerror=()=>rej(rq.error)})}
+async function dcSavePhoto(si,blob){try{const db=await dcDB();
+  await new Promise((res,rej)=>{const tx=db.transaction('fotos','readwrite');
+    tx.objectStore('fotos').put(blob,si);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}catch(e){}}
+async function dcLoadPhoto(si){try{const db=await dcDB();
+  return await new Promise(res=>{const tx=db.transaction('fotos','readonly');
+    const rq=tx.objectStore('fotos').get(si);rq.onsuccess=()=>res(rq.result||null);rq.onerror=()=>res(null)})}catch(e){return null}}
+async function dcDeletePhoto(si){try{const db=await dcDB();
+  db.transaction('fotos','readwrite').objectStore('fotos').delete(si)}catch(e){}}
+async function dcClearAllPhotos(){try{const db=await dcDB();
+  db.transaction('fotos','readwrite').objectStore('fotos').clear()}catch(e){}}
 
 /* ===================== PLANILHA ===================== */
 const F={lat:['latitude','lat'],lng:['longitude','long','lng','lon'],
@@ -1280,7 +1370,7 @@ async function fetchLeg(a,b){
 
 /* ===================== CONSTRUIR ===================== */
 async function build(stops){
-  STOPS=stops;DONE=new Set();SCANNED=new Set();KM_DRIVEN=0;ROUTE_DONE_SPOKEN=false;BAUPLAN=null;if(!STOPS.length)return toast('Nenhuma parada válida');
+  STOPS=stops;DONE=new Set();SCANNED=new Set();KM_DRIVEN=0;ROUTE_DONE_SPOKEN=false;BAUPLAN=null;DELIVERY={};dcClearAllPhotos();if(!STOPS.length)return toast('Nenhuma parada válida');
   if(MAP&&ROUTE_LINE){MAP.removeLayer(ROUTE_LINE);ROUTE_LINE=null}ROUTE_OVERVIEW_ON=false;
   TAIL=calcTail(STOPS.flatMap(s=>s.pkgs));
   load(true,'localizando você…');ORIGIN=await getOrigin();
@@ -1386,8 +1476,9 @@ function drawPins(){
   const nx=nextStop();
   ORDER.forEach((si,pos)=>{
     const s=STOPS[si],done=DONE.has(si),isNext=nx&&nx.si===si;
+    const failed=done&&DELIVERY[si]&&DELIVERY[si].status==='nao_entregue';
     const soon=!done&&!isNext&&nx&&pos<nx.i+5;
-    const cls=done?'done':(isNext?'next':(soon?'soon':''));
+    const cls=failed?'failed':(done?'done':(isNext?'next':(soon?'soon':'')));
     const sz=done?22:(isNext?40:30);
     L.marker([s.lat,s.lng],{zIndexOffset:isNext?1000:(done?0:200),
       icon:L.divIcon({className:'',html:`<div class="pin ${cls}">${SEQ[si]}</div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]})})
@@ -1502,18 +1593,11 @@ function refresh(){
   if(!chegou&&ARRIVED===nx.si)ARRIVED=null;
 
   $('#btnDone').textContent='ENTREGUEI';
-  $('#btnDone').onclick=()=>deliver(nx.si);
+  $('#btnDone').onclick=()=>openDeliveryCapture(nx.si);
   $('#btnWaze').onclick=()=>window.open(`https://waze.com/ul?ll=${s.lat},${s.lng}&navigate=yes`,'_blank');
   $('#btnSkip').onclick=()=>skip(nx.i);
   if(SHEETOPEN)renderMore();
   layoutSheet();
-}
-function deliver(si){
-  DONE.add(si);ARRIVED=null;LASTROUTE=null;save();
-  drawPins();refresh();maybeLeg();
-  const left=ORDER.length-DONE.size;
-  toast(left?`Boa! Faltam ${left} paradas`:'Rota concluída 🎉');
-  if(navigator.vibrate)navigator.vibrate(60);
 }
 function skip(i){
   const si=ORDER[i];ORDER.splice(i,1);ORDER.push(si);LASTROUTE=null;save();
@@ -1521,6 +1605,147 @@ function skip(i){
   toast('Parada pulada — ela volta no fim da rota, é a última que você vai entregar hoje',4200);
   speak('Parada pulada. Ela volta no fim da rota.');
 }
+
+/* ===================== COMPROVANTE DE ENTREGA ===================== */
+let DC_SI=null,DC_STREAM=null,DC_BLOB=null,DC_LOC=null;
+async function openDeliveryCapture(si){
+  DC_SI=si;DC_BLOB=null;DC_LOC=MEPOS?{lat:MEPOS.lat,lng:MEPOS.lng}:null;
+  $('#dcAfter').classList.add('hide');$('#dcReasons').classList.add('hide');
+  $('#dcPhoto').classList.add('hide');$('#dcVideo').classList.remove('hide');
+  $('#dcReasonOther').classList.add('hide');$('#dcReasonOther').value='';
+  $('#btnDcShoot').classList.remove('hide');$('#btnDcSkipPhoto').classList.add('hide');
+  document.querySelectorAll('.reasonChip').forEach(c=>c.classList.remove('sel'));
+  $('#pkScreen').classList.add('hide');$('#app').classList.add('hide');
+  $('#dcScreen').classList.remove('hide');
+  updateDcMeta();
+  try{
+    DC_STREAM=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    $('#dcVideo').srcObject=DC_STREAM;await $('#dcVideo').play();
+  }catch(e){
+    $('#btnDcShoot').classList.add('hide');$('#btnDcSkipPhoto').classList.remove('hide');
+  }
+  if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{
+    DC_LOC={lat:p.coords.latitude,lng:p.coords.longitude};updateDcMeta()},()=>{},{timeout:5000,maximumAge:15000});
+}
+function updateDcMeta(){
+  $('#dcMeta').textContent=(DC_LOC?'📍 local capturado · ':'⚠ sem GPS no momento · ')+new Date().toLocaleString('pt-BR');
+}
+function dcStopCam(){if(DC_STREAM){DC_STREAM.getTracks().forEach(t=>t.stop());DC_STREAM=null}}
+function closeDeliveryCapture(){
+  dcStopCam();$('#dcScreen').classList.add('hide');$('#app').classList.remove('hide');
+  DC_SI=null;DC_BLOB=null;
+}
+async function dcShoot(){
+  const v=$('#dcVideo');
+  const cv=document.createElement('canvas');
+  const scale=v.videoWidth?Math.min(1,640/v.videoWidth):1;
+  cv.width=Math.round((v.videoWidth||480)*scale);cv.height=Math.round((v.videoHeight||640)*scale);
+  cv.getContext('2d').drawImage(v,0,0,cv.width,cv.height);
+  DC_BLOB=await new Promise(res=>cv.toBlob(res,'image/jpeg',.62));
+  $('#dcPhoto').src=URL.createObjectURL(DC_BLOB);
+  $('#dcVideo').classList.add('hide');$('#dcPhoto').classList.remove('hide');
+  dcStopCam();
+  $('#btnDcShoot').classList.add('hide');
+  $('#dcAfter').classList.remove('hide');
+  updateDcMeta();
+}
+async function dcRetake(){
+  $('#dcAfter').classList.add('hide');$('#dcReasons').classList.add('hide');
+  $('#dcPhoto').classList.add('hide');$('#dcVideo').classList.remove('hide');
+  $('#btnDcShoot').classList.remove('hide');
+  try{DC_STREAM=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    $('#dcVideo').srcObject=DC_STREAM;await $('#dcVideo').play()}catch(e){}
+}
+async function dcConfirm(status,reason){
+  const si=DC_SI;if(si==null)return;
+  DELIVERY[si]={status,reason:reason||null,lat:DC_LOC?DC_LOC.lat:null,lng:DC_LOC?DC_LOC.lng:null,ts:Date.now(),hasPhoto:!!DC_BLOB};
+  if(DC_BLOB)await dcSavePhoto(si,DC_BLOB);else await dcDeletePhoto(si);
+  closeDeliveryCapture();
+  DONE.add(si);ARRIVED=null;LASTROUTE=null;save();
+  drawPins();refresh();maybeLeg();
+  const left=ORDER.length-DONE.size;
+  if(status==='entregue'){
+    toast(left?`Boa! Faltam ${left} paradas`:'Rota concluída 🎉');
+    if(navigator.vibrate)navigator.vibrate(60);
+  }else{
+    toast(left?`Registrado como não entregue — faltam ${left} paradas`:'Rota concluída 🎉',3400);
+    if(navigator.vibrate)navigator.vibrate([80,60,80]);
+  }
+  if(SHEETOPEN)renderMore();
+}
+$('#btnDcClose').onclick=closeDeliveryCapture;
+$('#btnDcShoot').onclick=dcShoot;
+$('#btnDcRetake').onclick=dcRetake;
+$('#btnDcSkipPhoto').onclick=()=>{$('#dcAfter').classList.remove('hide')};
+$('#btnDcOk').onclick=()=>dcConfirm('entregue',null);
+$('#btnDcFail').onclick=()=>{$('#dcReasons').classList.remove('hide')};
+document.querySelectorAll('.reasonChip').forEach(c=>c.onclick=()=>{
+  document.querySelectorAll('.reasonChip').forEach(x=>x.classList.remove('sel'));
+  c.classList.add('sel');
+  $('#dcReasonOther').classList.toggle('hide',c.dataset.r!=='Outro');
+  if(c.dataset.r==='Outro')$('#dcReasonOther').focus();
+});
+$('#btnDcConfirmFail').onclick=()=>{
+  const sel=document.querySelector('.reasonChip.sel');
+  if(!sel)return toast('Escolha um motivo',2200);
+  const reason=sel.dataset.r==='Outro'?($('#dcReasonOther').value.trim()||'Outro motivo'):sel.dataset.r;
+  dcConfirm('nao_entregue',reason);
+};
+
+/* ===================== RELATÓRIO DO DIA ===================== */
+function reportText(){
+  const d=new Date();
+  const ok=ORDER.filter(si=>DELIVERY[si]&&DELIVERY[si].status==='entregue').length;
+  const fail=ORDER.filter(si=>DELIVERY[si]&&DELIVERY[si].status==='nao_entregue').length;
+  let t=`Relatório de entregas — ${d.toLocaleDateString('pt-BR')}\n\n`;
+  t+=`${ok} entregues, ${fail} não entregues de ${ORDER.length} paradas\n${KM_DRIVEN.toFixed(1)} km rodados\n\n`;
+  ORDER.forEach(si=>{const rec=DELIVERY[si];if(!rec)return;const s=STOPS[si];
+    const hh=new Date(rec.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    t+=`${rec.status==='entregue'?'✓':'✗'} Parada ${SEQ[si]} — ${s.addr} (${hh})`;
+    if(rec.reason)t+=` — motivo: ${rec.reason}`;
+    if(rec.lat!=null)t+=` — https://maps.google.com/?q=${rec.lat},${rec.lng}`;
+    t+='\n';
+  });
+  return t;
+}
+function renderReport(){
+  const total=ORDER.length,vals=Object.values(DELIVERY);
+  const ok=vals.filter(d=>d.status==='entregue').length,fail=vals.filter(d=>d.status==='nao_entregue').length;
+  const pend=total-ok-fail;
+  let fuelTxt='';
+  if(FUEL.price>0&&FUEL.kmPerL>0)fuelTxt=` · ${fmtBRL(KM_DRIVEN/FUEL.kmPerL*FUEL.price)} em combustível`;
+  $('#rptSummary').textContent=`${ok} entregues, ${fail} não entregues, ${pend} pendentes de ${total} paradas · ${KM_DRIVEN.toFixed(1)} km rodados${fuelTxt}`;
+  $('#rptList').innerHTML=ORDER.map(si=>{
+    const rec=DELIVERY[si];if(!rec)return null;
+    const s=STOPS[si],ok=rec.status==='entregue';
+    const hh=new Date(rec.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    return `<div class="rptrow ${ok?'ok':'fail'}"><div class="n">${ok?'✓':'✗'}</div>
+      <div class="info"><div class="a">${esc(s.addr)}</div>
+      <div class="loc">${SEQ[si]}ª parada · ${hh}${rec.reason?' · '+esc(rec.reason):''}</div></div>
+      ${rec.hasPhoto?`<button class="rptPhoto" data-si="${si}">📷</button>`:''}</div>`;
+  }).filter(Boolean).join('')||'<div class="nohit">Nenhuma entrega registrada ainda</div>';
+}
+function showReport(){$('#pkScreen').classList.add('hide');$('#rptScreen').classList.remove('hide');renderReport()}
+function hideReport(){$('#rptScreen').classList.add('hide');$('#pkScreen').classList.remove('hide')}
+$('#btnOpenReport').onclick=showReport;
+$('#btnRptBack').onclick=hideReport;
+$('#btnRptShare').onclick=async()=>{
+  const txt=reportText();
+  if(navigator.share){try{await navigator.share({title:'Relatório de entregas',text:txt});return}catch(e){}}
+  try{await navigator.clipboard.writeText(txt);toast('Relatório copiado — cole onde quiser',3000)}
+  catch(e){toast('Não consegui compartilhar automaticamente',3000)}
+};
+$('#rptList').addEventListener('click',async e=>{
+  const b=e.target.closest('.rptPhoto');if(!b)return;
+  const blob=await dcLoadPhoto(+b.dataset.si);
+  if(!blob)return toast('Foto não encontrada',2200);
+  const img=document.createElement('img');
+  img.src=URL.createObjectURL(blob);
+  img.style.cssText='position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:3000';
+  img.onclick=()=>img.remove();
+  document.body.appendChild(img);
+});
+
 /* o mapa precisa saber a altura do card pra centralizar certo */
 function layoutSheet(){
   const h=$('#sheet').offsetHeight;
@@ -1540,9 +1765,9 @@ function centerOn(ll,zoom){
 /* ===================== LISTA / BUSCA / BAÚ ===================== */
 function renderMore(){
   const nx=nextStop();
-  $('#nextList').innerHTML=ORDER.map((si,pos)=>{const s=STOPS[si],d=DONE.has(si);
+  $('#nextList').innerHTML=ORDER.map((si,pos)=>{const s=STOPS[si],d=DONE.has(si),failed=d&&DELIVERY[si]&&DELIVERY[si].status==='nao_entregue';
     return `<div class="nx${d?' d':''}" data-p="${pos}">
-      <div class="n">${d?'✓':SEQ[si]}</div>
+      <div class="n">${d?(failed?'✗':'✓'):SEQ[si]}</div>
       <div class="a">${esc(s.addr)}</div>
       <div class="c mono">${esc(s.pkgs[0].slice(-TAIL))}${s.pkgs.length>1?`<b> +${s.pkgs.length-1}</b>`:''}</div>
     </div>`}).join('');
@@ -1625,13 +1850,14 @@ function renderPkFull(filter){
   const plan=bauPlan();const rows=[];const nx=nextStop();
   ORDER.forEach((si,pos)=>{
     const s=STOPS[si],done=DONE.has(si),isNext=nx&&nx.si===si;
+    const rec=DELIVERY[si],failed=done&&rec&&rec.status==='nao_entregue';
     s.pkgs.forEach(p=>{
       if(filter&&!normCode(p).includes(filter))return;
       const pl=plan.get(p),nm={porta:'porta',meio:'meio',fundo:'fundo'}[pl.sector];
-      rows.push(`<div class="pkrow${done?' d':''}" data-si="${si}"><div class="n">${done?'✓':SEQ[si]}</div>
+      rows.push(`<div class="pkrow${done?(failed?' f':' d'):''}" data-si="${si}"><div class="n">${done?(failed?'✗':'✓'):SEQ[si]}</div>
         <div class="info"><div class="a">${esc(s.addr)}</div>
         <div class="loc">${esc(p.slice(0,-TAIL))}<b>${esc(p.slice(-TAIL))}</b> · ${nm} do baú, pilha ${pl.pilha}</div>
-        ${done?'<div class="undo">toque pra desfazer a entrega</div>':''}</div>
+        ${done?`<div class="undo">${failed?'não entregue'+(rec.reason?' — '+esc(rec.reason):''):'entregue'} · toque pra desfazer</div>`:''}</div>
         ${!done&&!isNext?`<button class="promote" data-promote="${si}">fazer<br>agora</button>`:''}</div>`);
     });
   });
@@ -1675,7 +1901,7 @@ $('#pkFullList').addEventListener('click',e=>{
   if(DONE.has(si)){
     // desfaz entrega — pra corrigir um ENTREGUEI tocado sem querer.
     // fica na própria aba (não fecha, não navega) pra poder desfazer mais de uma se precisar.
-    DONE.delete(si);ARRIVED=null;LASTROUTE=null;save();
+    DONE.delete(si);delete DELIVERY[si];dcDeletePhoto(si);ARRIVED=null;LASTROUTE=null;save();
     drawPins();refresh();maybeLeg();startWatch();
     toast(`Entrega desfeita — parada ${SEQ[si]} voltou pra rota`,3200);
     speak(`Entrega desfeita. Parada ${SEQ[si]}.`);
@@ -1804,7 +2030,7 @@ $('#btnHelpBack').onclick=()=>{$('#scHelp').classList.add('hide');$('#scImport')
   $('#resume').classList.remove('hide');
   $('#btnResume').onclick=()=>{STOPS=s.STOPS;ORDER=s.ORDER;ORIGIN=s.ORIGIN;TAIL=s.TAIL||5;
     KM=s.KM||0;KM_RAW=s.KM_RAW||0;DONE=new Set(s.DONE||[]);SCANNED=new Set(s.SCANNED||[]);
-    KM_DRIVEN=s.KM_DRIVEN||0;
+    KM_DRIVEN=s.KM_DRIVEN||0;DELIVERY=s.DELIVERY||{};
     SEQ=s.SEQ||{};if(!s.SEQ)ORDER.forEach((si,i)=>SEQ[si]=i+1); // rota salva antes desta correção
     startApp();toast('Voltamos de onde você parou')};
   $('#btnNova').onclick=()=>{if(confirm('Isso apaga a rota salva. Continuar?')){wipe();$('#resume').classList.add('hide')}};
