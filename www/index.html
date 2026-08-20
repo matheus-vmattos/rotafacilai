@@ -767,6 +767,10 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
   border:1.5px solid var(--line);border-radius:11px;color:var(--ink);background:var(--paper)}
 .fuelRow input:focus{outline:0;border-color:var(--blue)}
 
+.helpStep{font-size:14.5px;line-height:1.5;margin-bottom:11px;color:var(--ink2)}
+.helpStep b{color:var(--blue);margin-right:3px}
+.helpList{font-size:14px;line-height:1.95;color:var(--ink2);margin-bottom:8px}
+
 /* ============ APP: MAPA EM TELA CHEIA ============ */
 #app{position:fixed;inset:0;z-index:50}
 #map{position:absolute;inset:0}
@@ -784,6 +788,8 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
 #top .bar i{display:block;height:100%;background:var(--green);border-radius:5px;transition:width .35s}
 .iconbtn{width:42px;height:42px;border-radius:13px;background:var(--ink);color:#fff;display:flex;
   align-items:center;justify-content:center;font-size:17px;font-weight:800;flex:0 0 auto}
+.helpq{margin-left:auto;width:34px;height:34px;border-radius:50%;font-size:16px;
+  background:var(--paper);color:var(--mut);border:1.5px solid var(--line)}
 
 /* --- botão recentralizar --- */
 #recenter{position:absolute;right:12px;z-index:600;width:48px;height:48px;border-radius:16px;
@@ -948,6 +954,7 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
   <div class="brand">
     <div class="blogo"><svg viewBox="0 0 24 24" fill="#fff"><path d="M5 18 L12 4 L19 18 L12 15 Z"/></svg></div>
     <div><div class="bname">Rota Fácil</div></div>
+    <button class="iconbtn helpq" id="btnHelp" aria-label="como usar o app">?</button>
   </div>
   <div class="bsub">Sua planilha vira rota. Sem digitar nada.</div>
 
@@ -970,6 +977,45 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
   <div class="spacer"></div>
   <div class="note"><b>Nada de digitar endereço.</b> A planilha da SPX já traz a localização de cada pacote.
     O app agrupa, calcula a melhor ordem e mostra <b>qual pacote pegar em cada parada</b>.</div>
+</div>
+
+<!-- ========== AJUDA ========== -->
+<div id="scHelp" class="screen hide">
+  <div class="pkTop">
+    <button class="iconbtn" id="btnHelpBack" aria-label="voltar"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <div class="pkTopTitle">Como usar o Rota Fácil</div>
+  </div>
+
+  <div class="mtitle" style="margin-top:18px">Passo a passo</div>
+  <div class="helpStep"><b>1.</b> Solte ou escolha a planilha .xlsx do dia — o app agrupa os pacotes por endereço e calcula a melhor ordem sozinho.</div>
+  <div class="helpStep"><b>2.</b> Confira o resumo (paradas, pacotes, km) e, se quiser, preencha o preço do combustível.</div>
+  <div class="helpStep"><b>3.</b> Carregue o baú escaneando os pacotes — o app diz onde guardar cada um. É opcional, dá pra pular.</div>
+  <div class="helpStep"><b>4.</b> Inicie a rota: o mapa guia até a próxima parada e o card de baixo mostra o pacote certo.</div>
+  <div class="helpStep"><b>5.</b> Ao chegar perto (uns 70 metros), o app avisa sozinho. Toque em ENTREGUEI e segue pra próxima.</div>
+  <div class="helpStep"><b>6.</b> Precisa achar um pacote específico ou conferir a rota inteira? É só tocar na lupa 🔍 ou no ícone de caixa 📦 no topo do mapa, a qualquer momento.</div>
+
+  <div class="mtitle">O que o app já faz</div>
+  <div class="helpList">
+    ✓ Importa e agrupa a planilha automaticamente<br>
+    ✓ Calcula a melhor sequência de paradas<br>
+    ✓ Guia no mapa com GPS ao vivo<br>
+    ✓ Busca reversa: acha a parada pelo código do pacote<br>
+    ✓ Carregamento do baú com scan (setor + pilha)<br>
+    ✓ Trânsito ao vivo no próximo trecho, quando configurado<br>
+    ✓ Estimativa e gasto real de combustível<br>
+    ✓ Salva a rota — fecha o app e continua de onde parou<br>
+    ✓ Funciona sem internet (só o mapa e o trânsito precisam de rede)
+  </div>
+
+  <div class="mtitle">O que está por vir</div>
+  <div class="helpList">
+    → Recalcular a rota a partir de onde você está<br>
+    → Registrar insucesso de entrega com motivo<br>
+    → Tempo por parada e relatório do mês<br>
+    → App 100% nativo com GPS funcionando de tela apagada<br>
+    → Login e sincronização entre aparelhos
+  </div>
+  <div class="spacer"></div>
 </div>
 
 <!-- ========== 2. RESUMO / INICIAR ========== -->
@@ -1100,6 +1146,7 @@ let SCANNED=new Set();
 let LASTLEG=null; // {si, delayMin} — trânsito do trecho até a próxima parada
 let KM_DRIVEN=0; // km realmente rodados (GPS), pra estimar gasto de combustível
 let ACTIVE_SCAN_STOP=null; // função que fecha a câmera do leitor, se estiver aberta
+let ROUTE_DONE_SPOKEN=false;
 
 /* preço do litro e consumo do carro — fica salvo separado da rota (é do
    veículo, não muda a cada planilha importada) */
@@ -1176,6 +1223,12 @@ function opt(D){const n=D.length;let o=[0],L=new Set();for(let i=1;i<n;i++)L.add
     const a=o[i-1],b=o[i],cc=o[k],d=(k+1<n)?o[k+1]:null;
     if(D[a][cc]+(d!==null?D[b][d]:0) < D[a][b]+(d!==null?D[cc][d]:0)-1e-9){
       o=o.slice(0,i).concat(o.slice(i,k+1).reverse(),o.slice(k+1));im=true}}}
+  // Or-opt: refinamento fino, mas cada tentativa recalcula a rota inteira —
+  // em rotas muito grandes isso vira O(n³) e trava o app por dezenas de
+  // segundos (testado: ~15s em 500 paradas, ~50s em 800). O 2-opt acima já
+  // pega a maior parte do ganho e é rápido em qualquer tamanho, então acima
+  // de 150 pontos a gente pula o Or-opt em vez de deixar o motorista esperando.
+  if(n>150)return o;
   im=true;g=0;
   while(im&&g++<40){im=false;
     for(let L2=1;L2<=3&&!im;L2++)for(let i=1;i+L2<=n&&!im;i++){
@@ -1215,9 +1268,10 @@ async function fetchLeg(a,b){
 
 /* ===================== CONSTRUIR ===================== */
 async function build(stops){
-  STOPS=stops;DONE=new Set();SCANNED=new Set();KM_DRIVEN=0;if(!STOPS.length)return toast('Nenhuma parada válida');
+  STOPS=stops;DONE=new Set();SCANNED=new Set();KM_DRIVEN=0;ROUTE_DONE_SPOKEN=false;if(!STOPS.length)return toast('Nenhuma parada válida');
   TAIL=calcTail(STOPS.flatMap(s=>s.pkgs));
   load(true,'localizando você…');ORIGIN=await getOrigin();
+  if(ORIGIN.fallback)toast('Não consegui pegar sua localização — a rota foi calculada a partir da 1ª parada da planilha',4500);
   const pts=[ORIGIN,...STOPS];let D;
   load(true,'calculando distâncias…');
   try{D=await osrmTable(pts)}catch(e){D=mtx(pts)}
@@ -1227,7 +1281,7 @@ async function build(stops){
   save();load(false);showBrief();
 }
 function getOrigin(){return new Promise(res=>{let d=false;const fin=o=>{if(!d){d=true;res(o)}};
-  const fb=()=>fin({lat:STOPS[0].lat,lng:STOPS[0].lng});setTimeout(fb,7000);
+  const fb=()=>fin({lat:STOPS[0].lat,lng:STOPS[0].lng,fallback:true});setTimeout(fb,7000);
   if(!navigator.geolocation)return fb();
   try{navigator.geolocation.getCurrentPosition(p=>fin({lat:p.coords.latitude,lng:p.coords.longitude}),fb,
     {timeout:6000,maximumAge:60000,enableHighAccuracy:true})}catch(e){fb()}})}
@@ -1335,9 +1389,14 @@ function refresh(){
 
   if(!nx){
     $('#cChip').textContent='FIM';$('#cChip').className='chip g';
-    $('#cAddr').textContent='Rota concluída 🎉';$('#cHood').textContent=`${tot} paradas entregues`;
+    $('#cAddr').textContent='Rota concluída 🎉';
+    $('#cHood').textContent=`${tot} paradas entregues`
+      +((FUEL.price>0&&FUEL.kmPerL>0)?` · ${KM_DRIVEN.toFixed(1)} km rodados · ${fmtBRL(KM_DRIVEN/FUEL.kmPerL*FUEL.price)} em combustível`:'');
     $('#cDist').textContent='';$('#cPk').classList.add('hide');
     $('#btnDone').textContent='ENCERRAR';$('#btnDone').onclick=()=>{wipe();location.reload()};
+    // rota acabou: para o GPS (senão fica gastando bateria até apertar ENCERRAR)
+    if(WATCH!==null){navigator.geolocation.clearWatch(WATCH);WATCH=null}
+    if(!ROUTE_DONE_SPOKEN){ROUTE_DONE_SPOKEN=true;speak('Rota concluída. Parabéns!')}
     return;
   }
   const s=nx.s,multi=s.pkgs.length>1;
@@ -1363,7 +1422,8 @@ function refresh(){
   }).join('')
     + (!chegou&&multi?`<div class="pkmore">+ ${s.pkgs.length-1} pacote(s) — aparecem ao chegar</div>`:'');
 
-  if(chegou&&ARRIVED!==nx.si){ARRIVED=nx.si;if(navigator.vibrate)navigator.vibrate([140,70,140])}
+  if(chegou&&ARRIVED!==nx.si){ARRIVED=nx.si;if(navigator.vibrate)navigator.vibrate([140,70,140]);
+    speak(multi?`Chegou. Pegue ${s.pkgs.length} pacotes.`:`Chegou. Pacote ${s.pkgs[0].slice(-TAIL)}.`)}
   if(!chegou&&ARRIVED===nx.si)ARRIVED=null;
 
   $('#btnDone').textContent='ENTREGUEI';
@@ -1423,10 +1483,23 @@ function renderMore(){
   $('#bauList').innerHTML=html;
 }
 function allPk(){const o=[];ORDER.forEach((si,pos)=>STOPS[si].pkgs.forEach(p=>o.push({p,si,pos})));return o}
+/* calcTail() garante sufixo único (últimos N chars) — não substring único.
+   Então a busca precisa achar por SUFIXO primeiro (bate com a garantia e
+   com o que o card mostra), e só cair pra substring livre como plano B
+   (tolerância a ruído de scanner). Buscar substring direto, sem essa
+   prioridade, gera falso "ambíguo" quando os mesmos dígitos aparecem no
+   meio de outro código — foi exatamente isso que confundiu um motorista
+   numa rota real. */
+function searchPkgs(q){
+  q=normCode(q);
+  const suf=allPk().filter(x=>normCode(x.p).endsWith(q));
+  if(suf.length)return suf;
+  return allPk().filter(x=>{const c=normCode(x.p);return c.includes(q)||q.includes(c)});
+}
 function doSearch(v){
-  const q=String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,''),r=$('#sres');
+  const q=normCode(v),r=$('#sres');
   if(q.length<2){r.innerHTML='';return}
-  const h=allPk().filter(x=>x.p.toUpperCase().replace(/[^A-Z0-9]/g,'').includes(q));
+  const h=searchPkgs(q);
   if(!h.length){r.innerHTML=`<div class="nohit">Nenhum pacote “${esc(q)}” nesta rota</div>`;return}
   const x=h[0],s=STOPS[x.si],d=DONE.has(x.si);
   r.innerHTML=`<div class="hit"><div class="n" style="${d?'background:#16A34A':''}">${x.pos+1}</div>
@@ -1454,7 +1527,7 @@ function pkgLoc(p){const pl=bauPlan().get(p);if(!pl)return'';
 function normCode(s){return String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'')}
 function matchPackage(raw){
   const q=normCode(raw);if(q.length<3)return{state:'short'};
-  const hits=allPk().filter(x=>{const c=normCode(x.p);return c.includes(q)||q.includes(c)});
+  const hits=searchPkgs(q);
   if(!hits.length)return{state:'notfound'};
   if(hits.length>1)return{state:'ambiguous',n:hits.length};
   return{state:'ok',pkg:hits[0].p}}
@@ -1588,6 +1661,8 @@ $('#btnSkipBau').onclick=startApp;
 $('#btnBauSkip').onclick=startApp;
 $('#btnBauDone').onclick=startApp;
 $('#btnBauBack').onclick=backToBrief;
+$('#btnHelp').onclick=()=>{$('#scImport').classList.add('hide');$('#scHelp').classList.remove('hide')};
+$('#btnHelpBack').onclick=()=>{$('#scHelp').classList.add('hide');$('#scImport').classList.remove('hide')};
 
 /* rota salva */
 (function(){const s=restore();if(!s||!s.STOPS||!s.STOPS.length)return;
@@ -1625,7 +1700,7 @@ window.addEventListener('resize',layoutSheet);
    (InstallApk) baixa a .apk e abre o instalador do Android — que sempre pede
    confirmação, não tem como pular essa tela. Fora do app nativo (navegador
    comum) essa checagem nem roda. */
-const APP_VERSION_CODE=4; // mantenha igual ao versionCode em android/app/build.gradle
+const APP_VERSION_CODE=5; // mantenha igual ao versionCode em android/app/build.gradle
 (function(){
   if(!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()))return;
   const VERSION_URL='https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/version.json';
@@ -1660,6 +1735,7 @@ let LAST_BACK=0;
 function handleBack(){
   if(ACTIVE_SCAN_STOP){ACTIVE_SCAN_STOP();return}
   if(!$('#pkScreen').classList.contains('hide')){hidePkScreen();return}
+  if(!$('#scHelp').classList.contains('hide')){$('#scHelp').classList.add('hide');$('#scImport').classList.remove('hide');return}
   if(SHEETOPEN){closeSheet();return}
   if(!$('#scBau').classList.contains('hide')){backToBrief();return}
   if(!$('#scBrief').classList.contains('hide')){backToImport();return}

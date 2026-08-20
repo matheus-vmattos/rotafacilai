@@ -7,3 +7,6 @@ android/captures/
 android/*.iml
 android/.idea/
 *.hprof
+
+# dados reais de teste (endereços/clientes) — nunca comitar
+testdata/
