@@ -759,6 +759,8 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
 .kpi b{display:block;font-size:27px;font-weight:800;letter-spacing:-1px;line-height:1}
 .kpi span{font-size:10.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.6px;font-weight:700}
 .saveline{background:#E9F7EF;color:var(--green2);border-radius:14px;padding:13px 15px;font-size:13.5px;font-weight:700;line-height:1.5}
+.warnline{background:var(--amberbg);color:#8a5a1e;border-radius:14px;padding:13px 15px;font-size:13.5px;font-weight:700;line-height:1.5;margin-top:10px}
+.warnline .btn{font-size:14px}
 
 .fuelBox{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:14px;margin:2px 0 16px}
 .fuelRow{display:flex;gap:10px}
@@ -795,6 +797,9 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
 #recenter{position:absolute;right:12px;z-index:600;width:48px;height:48px;border-radius:16px;
   background:rgba(255,255,255,.97);box-shadow:var(--sh);display:flex;align-items:center;justify-content:center;font-size:20px}
 #recenter.on{background:var(--blue);color:#fff}
+#btnRouteOverview{position:absolute;right:12px;z-index:600;width:48px;height:48px;border-radius:16px;
+  background:rgba(255,255,255,.97);box-shadow:var(--sh);display:flex;align-items:center;justify-content:center;color:var(--ink2)}
+#btnRouteOverview.on{background:var(--ink);color:#fff}
 
 /* --- personagem no mapa --- */
 .me{position:relative;width:44px;height:44px}
@@ -933,6 +938,8 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
 .pkrow .a{font-size:14.5px;font-weight:700;line-height:1.3}
 .pkrow.d .a{color:var(--mut);text-decoration:line-through}
 .pkrow .undo{font-size:11px;color:var(--blue);font-weight:700;margin-top:3px}
+.pkrow .promote{flex:0 0 auto;align-self:center;background:#EFF4FF;color:var(--blue);
+  font-size:11px;font-weight:800;line-height:1.25;text-align:center;border-radius:11px;padding:9px 10px;width:auto}
 .pkrow .loc{font-size:12.5px;color:var(--mut);font-weight:600;margin-top:3px}
 .pkrow .loc b{color:var(--ink);font-weight:800;font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace}
 </style>
@@ -1028,6 +1035,10 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
     <div id="fuelEst" class="pkStats" style="margin:10px 0 0">Preenche pra ver o custo estimado da rota</div>
   </div>
   <div class="saveline" id="bSave">✓ A rota fica salva. Se fechar o app, você volta de onde parou.</div>
+  <div id="straightLineWarn" class="warnline hide">
+    ⚠ Sem sinal suficiente pra calcular por rua — essa ordem foi feita em linha reta e pode ter trajetos estranhos.
+    <button class="btn plain" id="btnRetryRoad" style="margin-top:10px">🔄 Tentar de novo com dados de rua</button>
+  </div>
   <div class="spacer"></div>
   <button class="btn big green" id="btnToBau">CARREGAR O BAÚ ▸</button>
   <button class="btn link" id="btnSkipBau">pular e iniciar rota direto</button>
@@ -1073,6 +1084,7 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
   </div>
 
   <button id="recenter" class="on" aria-label="seguir"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="8.5"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3"/></svg></button>
+  <button id="btnRouteOverview" aria-label="ver rota inteira"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></button>
 
   <div id="sheet">
     <div class="grip" id="grip"><i></i></div>
@@ -1138,6 +1150,7 @@ let LASTLEG=null; // {si, delayMin} — trânsito do trecho até a próxima para
 let KM_DRIVEN=0; // km realmente rodados (GPS), pra estimar gasto de combustível
 let ACTIVE_SCAN_STOP=null; // função que fecha a câmera do leitor, se estiver aberta
 let ROUTE_DONE_SPOKEN=false;
+let USED_STRAIGHT_LINE=false; // true = a ordem foi calculada em linha reta (sem internet), não por rua
 /* número fixo de cada parada (si -> "parada N"), atribuído uma única vez
    ao montar a rota. NÃO é a posição no array ORDER: essa posição muda
    toda vez que uma parada é pulada (vai pro fim), e se o número mostrado
@@ -1268,17 +1281,33 @@ async function fetchLeg(a,b){
 /* ===================== CONSTRUIR ===================== */
 async function build(stops){
   STOPS=stops;DONE=new Set();SCANNED=new Set();KM_DRIVEN=0;ROUTE_DONE_SPOKEN=false;BAUPLAN=null;if(!STOPS.length)return toast('Nenhuma parada válida');
+  if(MAP&&ROUTE_LINE){MAP.removeLayer(ROUTE_LINE);ROUTE_LINE=null}ROUTE_OVERVIEW_ON=false;
   TAIL=calcTail(STOPS.flatMap(s=>s.pkgs));
   load(true,'localizando você…');ORIGIN=await getOrigin();
   if(ORIGIN.fallback)toast('Não consegui pegar sua localização — a rota foi calculada a partir da 1ª parada da planilha',4500);
   const pts=[ORIGIN,...STOPS];let D;
   load(true,'calculando distâncias…');
-  try{D=await osrmTable(pts)}catch(e){D=mtx(pts)}
+  try{D=await osrmTable(pts);USED_STRAIGHT_LINE=false}catch(e){D=mtx(pts);USED_STRAIGHT_LINE=true}
   load(true,'montando a melhor sequência…');
   ORDER=opt(D).slice(1).map(i=>i-1);
   SEQ={};ORDER.forEach((si,i)=>SEQ[si]=i+1);
   KM=plen(D,[0,...ORDER.map(i=>i+1)]);KM_RAW=plen(D,[0,...STOPS.map((_,i)=>i+1)]);
   save();load(false);showBrief();
+}
+/* tenta de novo com distância por rua (osrm), sem gps novo nem replanilhar —
+   pra quando o cálculo inicial caiu pra linha reta por falta de sinal e a
+   ordem das paradas ficou com cara de errada. */
+async function retryRoadOptimize(){
+  load(true,'tentando de novo com dados de rua…');
+  const pts=[ORIGIN,...STOPS];let D,ok=true;
+  try{D=await osrmTable(pts)}catch(e){D=mtx(pts);ok=false}
+  if(!ok){load(false);toast('Ainda sem sinal suficiente pra usar dados de rua — tenta de novo daqui a pouco',3800);return}
+  ORDER=opt(D).slice(1).map(i=>i-1);
+  SEQ={};ORDER.forEach((si,i)=>SEQ[si]=i+1);
+  KM=plen(D,[0,...ORDER.map(i=>i+1)]);KM_RAW=plen(D,[0,...STOPS.map((_,i)=>i+1)]);
+  USED_STRAIGHT_LINE=false;BAUPLAN=null;
+  save();load(false);showBrief();
+  toast('Pronto — a ordem agora usa distância real de rua',3200);
 }
 function getOrigin(){return new Promise(res=>{let d=false;const fin=o=>{if(!d){d=true;res(o)}};
   const fb=()=>fin({lat:STOPS[0].lat,lng:STOPS[0].lng,fallback:true});setTimeout(fb,7000);
@@ -1320,6 +1349,7 @@ function showBrief(){
     : '✓ A rota fica salva. Se fechar o app, você volta de onde parou.';
   $('#fuelPrice').value=FUEL.price||'';$('#fuelKmL').value=FUEL.kmPerL||'';
   updateFuelEst();
+  $('#straightLineWarn').classList.toggle('hide',!USED_STRAIGHT_LINE);
 }
 function updateFuelEst(){
   const el=$('#fuelEst');if(!el)return;
@@ -1364,6 +1394,27 @@ function drawPins(){
       .on('click',()=>{toast(`Parada ${SEQ[si]} · pacote ${s.pkgs.map(p=>p.slice(-TAIL)).join(', ')}`,3200)})
       .addTo(PINS)});
   drawMe();
+  if(ROUTE_OVERVIEW_ON)drawRouteOverview();
+}
+/* linha fina "esquemática" ligando as paradas que faltam, na ordem de
+   visita — só pra dar uma visão do formato do dia inteiro. Não é
+   navegação turno-a-turno (isso o Waze faz melhor) e não segue rua
+   nenhuma, é só ligar os pontos em linha reta mesmo. */
+let ROUTE_LINE=null,ROUTE_OVERVIEW_ON=false;
+function drawRouteOverview(){
+  if(!MAP)return;
+  if(ROUTE_LINE){MAP.removeLayer(ROUTE_LINE);ROUTE_LINE=null}
+  const pending=ORDER.filter(si=>!DONE.has(si));
+  if(pending.length<2)return;
+  const latlngs=pending.map(si=>[STOPS[si].lat,STOPS[si].lng]);
+  ROUTE_LINE=L.polyline(latlngs,{color:'#94A3B8',weight:3,opacity:.7,dashArray:'2,9',lineCap:'round'}).addTo(MAP);
+  ROUTE_LINE.bringToBack();
+}
+function toggleRouteOverview(){
+  ROUTE_OVERVIEW_ON=!ROUTE_OVERVIEW_ON;
+  $('#btnRouteOverview').classList.toggle('on',ROUTE_OVERVIEW_ON);
+  if(ROUTE_OVERVIEW_ON)drawRouteOverview();
+  else if(ROUTE_LINE){MAP.removeLayer(ROUTE_LINE);ROUTE_LINE=null}
 }
 function drawMe(){
   if(!MAP||!MEPOS)return;
@@ -1474,6 +1525,7 @@ function skip(i){
 function layoutSheet(){
   const h=$('#sheet').offsetHeight;
   $('#recenter').style.bottom=(h+12)+'px';
+  $('#btnRouteOverview').style.bottom=(h+12+48+10)+'px';
 }
 /* o card cobre a parte de baixo da tela: o mapa centraliza na FAIXA VISÍVEL,
    senão o personagem fica escondido atrás do card. */
@@ -1570,19 +1622,31 @@ function speak(t){try{if(!('speechSynthesis'in window))return;
    escondido dentro do card). Mostra todo pacote da rota, em que
    parada/ordem ele entra e onde guardar no baú, com busca. */
 function renderPkFull(filter){
-  const plan=bauPlan();const rows=[];
+  const plan=bauPlan();const rows=[];const nx=nextStop();
   ORDER.forEach((si,pos)=>{
-    const s=STOPS[si],done=DONE.has(si);
+    const s=STOPS[si],done=DONE.has(si),isNext=nx&&nx.si===si;
     s.pkgs.forEach(p=>{
       if(filter&&!normCode(p).includes(filter))return;
       const pl=plan.get(p),nm={porta:'porta',meio:'meio',fundo:'fundo'}[pl.sector];
       rows.push(`<div class="pkrow${done?' d':''}" data-si="${si}"><div class="n">${done?'✓':SEQ[si]}</div>
         <div class="info"><div class="a">${esc(s.addr)}</div>
         <div class="loc">${esc(p.slice(0,-TAIL))}<b>${esc(p.slice(-TAIL))}</b> · ${nm} do baú, pilha ${pl.pilha}</div>
-        ${done?'<div class="undo">toque pra desfazer a entrega</div>':''}</div></div>`);
+        ${done?'<div class="undo">toque pra desfazer a entrega</div>':''}</div>
+        ${!done&&!isNext?`<button class="promote" data-promote="${si}">fazer<br>agora</button>`:''}</div>`);
     });
   });
   $('#pkFullList').innerHTML=rows.join('')||'<div class="nohit">Nenhum pacote encontrado</div>';
+}
+function promoteStop(si){
+  if(DONE.has(si))return;
+  const donePart=ORDER.filter(x=>DONE.has(x));
+  const pendingPart=ORDER.filter(x=>!DONE.has(x)&&x!==si);
+  ORDER=[...donePart,si,...pendingPart];
+  ARRIVED=null;LASTROUTE=null;save();
+  drawPins();refresh();maybeLeg();
+  toast(`Parada ${SEQ[si]} agora é a próxima`,2600);
+  speak(`Parada ${SEQ[si]} agora é a próxima.`);
+  renderPkFull(normCode($('#pkQ').value));
 }
 function updatePkStats(){
   let t=`${DONE.size} de ${ORDER.length} paradas entregues · ${bauTotal()} pacotes no total`;
@@ -1604,6 +1668,8 @@ $('#btnPkgsBack').onclick=hidePkScreen;
 $('#btnRecalc').onclick=recalcFromHere;
 $('#pkQ').oninput=e=>renderPkFull(normCode(e.target.value));
 $('#pkFullList').addEventListener('click',e=>{
+  const promoteBtn=e.target.closest('.promote');
+  if(promoteBtn){promoteStop(+promoteBtn.dataset.promote);return}
   const r=e.target.closest('.pkrow');if(!r)return;
   const si=+r.dataset.si,s=STOPS[si];
   if(DONE.has(si)){
@@ -1620,6 +1686,7 @@ $('#pkFullList').addEventListener('click',e=>{
   if(MAP){setFollow(false);setTimeout(()=>centerOn([s.lat,s.lng],17),340)}
 });
 $('#recenter').onclick=()=>setFollow(!FOLLOW);
+$('#btnRouteOverview').onclick=toggleRouteOverview;
 $('#btnQuit').onclick=()=>{if(confirm('Apagar esta rota?')){wipe();location.reload()}};
 document.addEventListener('click',e=>{const n=e.target.closest('.nx');if(!n)return;
   const s=STOPS[ORDER[+n.dataset.p]];if(MAP){setFollow(false);closeSheet();setTimeout(()=>centerOn([s.lat,s.lng],17),340)}});
@@ -1724,6 +1791,7 @@ $('#btnBauDone').onclick=()=>{if(BAU_FROM_APP)closeBauOverlay();else startApp()}
 $('#btnBauBack').onclick=()=>{if(BAU_FROM_APP)closeBauOverlay();else backToBrief()};
 $('#btnGoBau').onclick=showBauFromApp;
 $('#btnBriefBack').onclick=backToImport;
+$('#btnRetryRoad').onclick=retryRoadOptimize;
 $('#btnHelp').onclick=()=>{$('#scImport').classList.add('hide');$('#scHelp').classList.remove('hide')};
 $('#btnHelpBack').onclick=()=>{$('#scHelp').classList.add('hide');$('#scImport').classList.remove('hide')};
 

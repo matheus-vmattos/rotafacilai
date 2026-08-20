@@ -1,6 +1,6 @@
 {
-  "versionCode": 9,
-  "versionName": "0.6.0",
+  "versionCode": 10,
+  "versionName": "0.7.0",
   "apkUrl": "https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/rotafacil.apk",
-  "notes": "Desfazer entrega: toque numa parada já entregue na aba 'Conferir pacotes' pra desfazer. Recalcular a partir daqui: novo botão na mesma aba recalcula a ordem das paradas restantes a partir de onde você está agora, sem mudar os números fixos de cada parada."
+  "notes": "Ver a rota inteira: novo botão no mapa mostra uma linha ligando todas as paradas que faltam, não só a próxima. Adiantar parada: na aba 'Conferir pacotes', toque em 'fazer agora' em qualquer parada pra pular direto pra ela, sem precisar pular uma por uma. Aviso de rota em linha reta: se o app não conseguir calcular a ordem por rua (sem sinal), agora ele avisa e tem um botão pra tentar de novo depois."
 }
