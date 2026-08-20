@@ -1,6 +1,6 @@
 {
-  "versionCode": 12,
-  "versionName": "0.8.1",
+  "versionCode": 13,
+  "versionName": "0.9.0",
   "apkUrl": "https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/rotafacil.apk",
-  "notes": "Corrigido: antes, encerrar a rota apagava tudo na hora sem chance de ver ou mandar o relatório. Agora, ao entregar a última parada, abre uma tela de resumo com opção de ver o relatório completo e compartilhar — 'encerrar e apagar' virou um botão separado, só pra quando você realmente quiser."
+  "notes": "Foto na entrega agora é opcional — tem o botão 'entregar sem tirar foto' desde o início, não só quando a câmera falha. Novo: 'Salvar rota em arquivo' (na aba de pacotes e na tela de fim de rota) gera um arquivo com o resumo do dia, cada parada, tempo total e o caminho percorrido, pra guardar no celular ou compartilhar onde quiser."
 }

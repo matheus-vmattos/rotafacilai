@@ -1178,7 +1178,7 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
   <div id="dcCam"><video id="dcVideo" playsinline muted autoplay></video><img id="dcPhoto" class="hide"></div>
   <div id="dcMeta"></div>
   <button class="btn big cta" id="btnDcShoot">📷 TIRAR FOTO</button>
-  <button class="btn plain hide" id="btnDcSkipPhoto">continuar sem foto (câmera indisponível)</button>
+  <button class="btn link" id="btnDcSkipPhoto">entregar sem tirar foto</button>
   <div id="dcAfter" class="hide">
     <button class="btn plain" id="btnDcRetake">tirar de novo</button>
     <div class="dcRow2">
@@ -1209,6 +1209,7 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
   </div>
   <button class="btn big cta" id="btnDoneReport">📋 Ver relatório do dia</button>
   <button class="btn plain" id="btnDoneShare">📤 Compartilhar relatório</button>
+  <button class="btn plain" id="btnDoneSaveFile">💾 Salvar rota em arquivo</button>
   <button class="btn link" id="btnDoneMap">ver o mapa de novo</button>
   <div class="spacer"></div>
   <button class="btn plain" id="btnDoneEnd" style="border-color:var(--red);color:var(--red)">Encerrar e apagar esta rota</button>
@@ -1221,7 +1222,8 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
     <div class="pkTopTitle">Relatório do dia</div>
   </div>
   <div id="rptSummary" class="pkStats">—</div>
-  <button class="btn plain" id="btnRptShare" style="margin-bottom:10px">📤 Compartilhar relatório</button>
+  <button class="btn plain" id="btnRptShare">📤 Compartilhar relatório</button>
+  <button class="btn plain" id="btnRptSaveFile" style="margin-bottom:10px">💾 Salvar rota em arquivo</button>
   <div id="rptList"></div>
 </div>
 
@@ -1236,6 +1238,8 @@ let ARRIVED=null,LASTROUTE=null,SHEETOPEN=false;
 let SCANNED=new Set();
 let LASTLEG=null; // {si, delayMin} — trânsito do trecho até a próxima parada
 let KM_DRIVEN=0; // km realmente rodados (GPS), pra estimar gasto de combustível
+let TRACK=[]; // {lat,lng} amostrados a cada ~50m rodados — o "caminho percorrido" pra salvar/exportar
+let ROUTE_START=null; // Date.now() de quando a rota foi montada, pra calcular o tempo total depois
 let ACTIVE_SCAN_STOP=null; // função que fecha a câmera do leitor, se estiver aberta
 let ROUTE_DONE_SPOKEN=false;
 let USED_STRAIGHT_LINE=false; // true = a ordem foi calculada em linha reta (sem internet), não por rua
@@ -1285,7 +1289,7 @@ function fmtD(km){return km<1?Math.round(km*1000)+' m':km.toFixed(1)+' km'}
 
 /* ===================== PERSISTÊNCIA ===================== */
 const LS='rotafacil.v5';
-function save(){try{localStorage.setItem(LS,JSON.stringify({ts:Date.now(),STOPS,ORDER,ORIGIN,TAIL,KM,KM_RAW,DONE:[...DONE],SCANNED:[...SCANNED],KM_DRIVEN,SEQ,DELIVERY}))}catch(e){}}
+function save(){try{localStorage.setItem(LS,JSON.stringify({ts:Date.now(),STOPS,ORDER,ORIGIN,TAIL,KM,KM_RAW,DONE:[...DONE],SCANNED:[...SCANNED],KM_DRIVEN,SEQ,DELIVERY,TRACK,ROUTE_START}))}catch(e){}}
 function restore(){try{return JSON.parse(localStorage.getItem(LS)||'null')}catch(e){return null}}
 function wipe(){try{localStorage.removeItem(LS)}catch(e){}DELIVERY={};dcClearAllPhotos()}
 
@@ -1390,7 +1394,7 @@ async function fetchLeg(a,b){
 
 /* ===================== CONSTRUIR ===================== */
 async function build(stops){
-  STOPS=stops;DONE=new Set();SCANNED=new Set();KM_DRIVEN=0;ROUTE_DONE_SPOKEN=false;BAUPLAN=null;DELIVERY={};dcClearAllPhotos();if(!STOPS.length)return toast('Nenhuma parada válida');
+  STOPS=stops;DONE=new Set();SCANNED=new Set();KM_DRIVEN=0;TRACK=[];ROUTE_START=Date.now();ROUTE_DONE_SPOKEN=false;BAUPLAN=null;DELIVERY={};dcClearAllPhotos();if(!STOPS.length)return toast('Nenhuma parada válida');
   if(MAP&&ROUTE_LINE){MAP.removeLayer(ROUTE_LINE);ROUTE_LINE=null}ROUTE_OVERVIEW_ON=false;
   TAIL=calcTail(STOPS.flatMap(s=>s.pkgs));
   load(true,'localizando você…');ORIGIN=await getOrigin();
@@ -1548,6 +1552,9 @@ function startWatch(){
     // soma km rodado de verdade (pro gasto de combustível), ignorando ruído
     // de GPS parado (<5m) e saltos absurdos (>500m entre dois pontos)
     if(MEPOS){const d=hav(MEPOS,nw);if(d>0.005&&d<0.5)KM_DRIVEN+=d}
+    // guarda o trajeto a cada ~50m rodados — dá pra reconstituir o caminho
+    // percorrido no arquivo salvo, sem virar milhares de pontos por dia
+    if(!TRACK.length||hav(TRACK[TRACK.length-1],nw)>0.05)TRACK.push(nw);
     MEPOS=nw;drawMe();if(FOLLOW)centerOn([nw.lat,nw.lng]);
     refresh();maybeLeg();
   },()=>{},{enableHighAccuracy:true,maximumAge:1500,timeout:20000})}catch(e){}
@@ -1634,7 +1641,7 @@ async function openDeliveryCapture(si){
   $('#dcAfter').classList.add('hide');$('#dcReasons').classList.add('hide');
   $('#dcPhoto').classList.add('hide');$('#dcVideo').classList.remove('hide');
   $('#dcReasonOther').classList.add('hide');$('#dcReasonOther').value='';
-  $('#btnDcShoot').classList.remove('hide');$('#btnDcSkipPhoto').classList.add('hide');
+  $('#btnDcShoot').classList.remove('hide');$('#btnDcSkipPhoto').classList.remove('hide');
   document.querySelectorAll('.reasonChip').forEach(c=>c.classList.remove('sel'));
   $('#pkScreen').classList.add('hide');$('#app').classList.add('hide');
   $('#dcScreen').classList.remove('hide');
@@ -1643,7 +1650,7 @@ async function openDeliveryCapture(si){
     DC_STREAM=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
     $('#dcVideo').srcObject=DC_STREAM;await $('#dcVideo').play();
   }catch(e){
-    $('#btnDcShoot').classList.add('hide');$('#btnDcSkipPhoto').classList.remove('hide');
+    $('#btnDcShoot').classList.add('hide'); // sem câmera — ainda dá pra entregar sem foto
   }
   if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{
     DC_LOC={lat:p.coords.latitude,lng:p.coords.longitude};updateDcMeta()},()=>{},{timeout:5000,maximumAge:15000});
@@ -1666,14 +1673,23 @@ async function dcShoot(){
   $('#dcPhoto').src=URL.createObjectURL(DC_BLOB);
   $('#dcVideo').classList.add('hide');$('#dcPhoto').classList.remove('hide');
   dcStopCam();
-  $('#btnDcShoot').classList.add('hide');
+  $('#btnDcShoot').classList.add('hide');$('#btnDcSkipPhoto').classList.add('hide');
+  $('#btnDcRetake').textContent='tirar de novo';
+  $('#dcAfter').classList.remove('hide');
+  updateDcMeta();
+}
+function dcSkipPhoto(){
+  DC_BLOB=null;dcStopCam();
+  $('#dcVideo').classList.add('hide');$('#dcPhoto').classList.add('hide');
+  $('#btnDcShoot').classList.add('hide');$('#btnDcSkipPhoto').classList.add('hide');
+  $('#btnDcRetake').textContent='tirar foto afinal';
   $('#dcAfter').classList.remove('hide');
   updateDcMeta();
 }
 async function dcRetake(){
   $('#dcAfter').classList.add('hide');$('#dcReasons').classList.add('hide');
   $('#dcPhoto').classList.add('hide');$('#dcVideo').classList.remove('hide');
-  $('#btnDcShoot').classList.remove('hide');
+  $('#btnDcShoot').classList.remove('hide');$('#btnDcSkipPhoto').classList.remove('hide');
   try{DC_STREAM=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
     $('#dcVideo').srcObject=DC_STREAM;await $('#dcVideo').play()}catch(e){}
 }
@@ -1698,7 +1714,7 @@ async function dcConfirm(status,reason){
 $('#btnDcClose').onclick=closeDeliveryCapture;
 $('#btnDcShoot').onclick=dcShoot;
 $('#btnDcRetake').onclick=dcRetake;
-$('#btnDcSkipPhoto').onclick=()=>{$('#dcAfter').classList.remove('hide')};
+$('#btnDcSkipPhoto').onclick=dcSkipPhoto;
 $('#btnDcOk').onclick=()=>dcConfirm('entregue',null);
 $('#btnDcFail').onclick=()=>{$('#dcReasons').classList.remove('hide')};
 document.querySelectorAll('.reasonChip').forEach(c=>c.onclick=()=>{
@@ -1715,12 +1731,13 @@ $('#btnDcConfirmFail').onclick=()=>{
 };
 
 /* ===================== RELATÓRIO DO DIA ===================== */
-function reportText(){
-  const d=new Date();
-  const ok=ORDER.filter(si=>DELIVERY[si]&&DELIVERY[si].status==='entregue').length;
-  const fail=ORDER.filter(si=>DELIVERY[si]&&DELIVERY[si].status==='nao_entregue').length;
-  let t=`Relatório de entregas — ${d.toLocaleDateString('pt-BR')}\n\n`;
-  t+=`${ok} entregues, ${fail} não entregues de ${ORDER.length} paradas\n${KM_DRIVEN.toFixed(1)} km rodados\n\n`;
+function elapsedTimeText(){
+  if(!ROUTE_START)return null;
+  const min=Math.round((Date.now()-ROUTE_START)/60000);
+  return `${Math.floor(min/60)}h${String(min%60).padStart(2,'0')}min`;
+}
+function reportStopsText(){
+  let t='';
   ORDER.forEach(si=>{const rec=DELIVERY[si];if(!rec)return;const s=STOPS[si];
     const hh=new Date(rec.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
     t+=`${rec.status==='entregue'?'✓':'✗'} Parada ${SEQ[si]} — ${s.addr} (${hh})`;
@@ -1729,6 +1746,51 @@ function reportText(){
     t+='\n';
   });
   return t;
+}
+function reportText(){
+  const d=new Date();
+  const ok=ORDER.filter(si=>DELIVERY[si]&&DELIVERY[si].status==='entregue').length;
+  const fail=ORDER.filter(si=>DELIVERY[si]&&DELIVERY[si].status==='nao_entregue').length;
+  let t=`Relatório de entregas — ${d.toLocaleDateString('pt-BR')}\n\n`;
+  t+=`${ok} entregues, ${fail} não entregues de ${ORDER.length} paradas\n${KM_DRIVEN.toFixed(1)} km rodados\n\n`;
+  t+=reportStopsText();
+  return t;
+}
+/* arquivo completo pra guardar a rota do dia (ou compartilhar/anexar em algum
+   lugar): resumo, tempo total, km e combustível, cada parada, e o trajeto
+   percorrido — pra quem quiser ter esse registro por conta própria, sem
+   depender do app aceitar foto/relatório em algum sistema da SPX/Shopee. */
+function buildRouteFile(){
+  const d=new Date();
+  const ok=ORDER.filter(si=>DELIVERY[si]&&DELIVERY[si].status==='entregue').length;
+  const fail=ORDER.filter(si=>DELIVERY[si]&&DELIVERY[si].status==='nao_entregue').length;
+  const pend=ORDER.length-ok-fail;
+  let t=`ROTA FÁCIL — registro da rota\n${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}\n\n`;
+  t+=`Paradas: ${ORDER.length} (${ok} entregues, ${fail} não entregues, ${pend} pendentes)\n`;
+  const elapsed=elapsedTimeText();if(elapsed)t+=`Tempo total: ${elapsed}\n`;
+  t+=`Km rodados: ${KM_DRIVEN.toFixed(1)} km (planejado: ${KM.toFixed(1)} km)\n`;
+  if(FUEL.price>0&&FUEL.kmPerL>0)t+=`Combustível estimado: ${fmtBRL(KM_DRIVEN/FUEL.kmPerL*FUEL.price)} (${FUEL.kmPerL} km/l a ${fmtBRL(FUEL.price)}/l)\n`;
+  t+=`\n--- Paradas ---\n${reportStopsText()}`;
+  if(TRACK.length){
+    t+=`\n--- Trajeto percorrido (${TRACK.length} pontos) ---\n`;
+    t+=TRACK.map(p=>`${p.lat.toFixed(5)},${p.lng.toFixed(5)}`).join(' ; ')+'\n';
+  }
+  const filename=`rota-facil_${d.toISOString().slice(0,10)}.txt`;
+  return{filename,text:t};
+}
+async function saveRouteFile(){
+  const{filename,text}=buildRouteFile();
+  let file;
+  try{file=new File([text],filename,{type:'text/plain'})}catch(e){file=new Blob([text],{type:'text/plain'})}
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    try{await navigator.share({files:[file],title:'Rota Fácil — registro do dia'});return}catch(e){}
+  }
+  try{
+    const url=URL.createObjectURL(file);
+    const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),4000);
+    toast('Arquivo salvo — confira nos downloads do celular',3400);
+  }catch(e){toast('Não consegui gerar o arquivo',3000)}
 }
 function renderReport(){
   const total=ORDER.length,vals=Object.values(DELIVERY);
@@ -1762,6 +1824,7 @@ async function shareReport(){
   catch(e){toast('Não consegui compartilhar automaticamente',3000)}
 }
 $('#btnRptShare').onclick=shareReport;
+$('#btnRptSaveFile').onclick=saveRouteFile;
 $('#rptList').addEventListener('click',async e=>{
   const b=e.target.closest('.rptPhoto');if(!b)return;
   const blob=await dcLoadPhoto(+b.dataset.si);
@@ -1793,6 +1856,7 @@ function showDoneScreen(){
 }
 $('#btnDoneReport').onclick=()=>showReport('done');
 $('#btnDoneShare').onclick=shareReport;
+$('#btnDoneSaveFile').onclick=saveRouteFile;
 $('#btnDoneMap').onclick=()=>{$('#doneScreen').classList.add('hide');$('#app').classList.remove('hide');layoutSheet()};
 $('#btnDoneEnd').onclick=()=>{
   if(confirm('Isso apaga a rota, as entregas e as fotos salvas. Continuar?')){wipe();location.reload()}
@@ -2082,7 +2146,7 @@ $('#btnHelpBack').onclick=()=>{$('#scHelp').classList.add('hide');$('#scImport')
   $('#resume').classList.remove('hide');
   $('#btnResume').onclick=()=>{STOPS=s.STOPS;ORDER=s.ORDER;ORIGIN=s.ORIGIN;TAIL=s.TAIL||5;
     KM=s.KM||0;KM_RAW=s.KM_RAW||0;DONE=new Set(s.DONE||[]);SCANNED=new Set(s.SCANNED||[]);
-    KM_DRIVEN=s.KM_DRIVEN||0;DELIVERY=s.DELIVERY||{};
+    KM_DRIVEN=s.KM_DRIVEN||0;DELIVERY=s.DELIVERY||{};TRACK=s.TRACK||[];ROUTE_START=s.ROUTE_START||s.ts||Date.now();
     SEQ=s.SEQ||{};if(!s.SEQ)ORDER.forEach((si,i)=>SEQ[si]=i+1); // rota salva antes desta correção
     startApp();toast('Voltamos de onde você parou')};
   $('#btnNova').onclick=()=>{if(confirm('Isso apaga a rota salva. Continuar?')){wipe();$('#resume').classList.add('hide')}};
