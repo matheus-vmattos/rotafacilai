@@ -933,6 +933,7 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
 .pkrow .info{flex:1;min-width:0}
 .pkrow .a{font-size:14.5px;font-weight:700;line-height:1.3}
 .pkrow.d .a{color:var(--mut);text-decoration:line-through}
+.pkrow .undo{font-size:11px;color:var(--blue);font-weight:700;margin-top:3px}
 .pkrow .loc{font-size:12.5px;color:var(--mut);font-weight:600;margin-top:3px}
 .pkrow .loc b{color:var(--ink);font-weight:800;font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace}
 
@@ -1131,6 +1132,7 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
   </div>
   <div class="srch" style="margin-top:16px"><input id="pkQ" maxlength="15" placeholder="buscar por últimos dígitos" autocomplete="off"></div>
   <div id="pkStats" class="pkStats">—</div>
+  <button class="btn plain" id="btnRecalc" style="margin-bottom:10px">🔄 Recalcular a partir daqui</button>
   <div id="pkFullList"></div>
 </div>
 
@@ -1295,6 +1297,30 @@ function getOrigin(){return new Promise(res=>{let d=false;const fin=o=>{if(!d){d
   if(!navigator.geolocation)return fb();
   try{navigator.geolocation.getCurrentPosition(p=>fin({lat:p.coords.latitude,lng:p.coords.longitude}),fb,
     {timeout:6000,maximumAge:60000,enableHighAccuracy:true})}catch(e){fb()}})}
+
+/* recalcula só a ORDEM DE VISITA das paradas que faltam, a partir de onde
+   o motorista está agora — pra quando ele se desvia da rota ou uma rua
+   fecha. Não mexe no número fixo de cada parada (SEQ) nem no plano do
+   baú (BAUPLAN): esses continuam os mesmos do início do dia, só muda em
+   que ordem as paradas restantes vão ser visitadas daqui pra frente. */
+async function recalcFromHere(){
+  if(!MEPOS)return toast('Esperando o GPS encontrar você…');
+  const doneIds=ORDER.filter(si=>DONE.has(si));
+  const pendingIds=ORDER.filter(si=>!DONE.has(si));
+  if(pendingIds.length<2)return toast('Só falta essa parada, nada pra recalcular');
+  load(true,'recalculando a partir de onde você está…');
+  const pts=[MEPOS,...pendingIds.map(si=>STOPS[si])];
+  let D;
+  try{D=await osrmTable(pts)}catch(e){D=mtx(pts)}
+  const newLocalOrder=opt(D).slice(1).map(i=>i-1);
+  const newPending=newLocalOrder.map(i=>pendingIds[i]);
+  ORDER=[...doneIds,...newPending];
+  ARRIVED=null;LASTROUTE=null;save();
+  drawPins();refresh();maybeLeg();
+  load(false);
+  toast('Rota recalculada a partir de onde você está agora',3200);
+  speak('Rota recalculada.');
+}
 
 function showBrief(){
   $('#scImport').classList.add('hide');$('#scBrief').classList.remove('hide');
@@ -1564,7 +1590,8 @@ function renderPkFull(filter){
       const pl=plan.get(p),nm={porta:'porta',meio:'meio',fundo:'fundo'}[pl.sector];
       rows.push(`<div class="pkrow${done?' d':''}" data-si="${si}"><div class="n">${done?'✓':SEQ[si]}</div>
         <div class="info"><div class="a">${esc(s.addr)}</div>
-        <div class="loc">${esc(p.slice(0,-TAIL))}<b>${esc(p.slice(-TAIL))}</b> · ${nm} do baú, pilha ${pl.pilha}</div></div></div>`);
+        <div class="loc">${esc(p.slice(0,-TAIL))}<b>${esc(p.slice(-TAIL))}</b> · ${nm} do baú, pilha ${pl.pilha}</div>
+        ${done?'<div class="undo">toque pra desfazer a entrega</div>':''}</div></div>`);
     });
   });
   $('#pkFullList').innerHTML=rows.join('')||'<div class="nohit">Nenhum pacote encontrado</div>';
@@ -1586,10 +1613,22 @@ $('#btnFind').onclick=()=>{openSheet();setTimeout(()=>{$('#q').focus();$('#q').s
 $('#q').oninput=e=>doSearch(e.target.value);
 $('#btnPkgs').onclick=showPkScreen;
 $('#btnPkgsBack').onclick=hidePkScreen;
+$('#btnRecalc').onclick=recalcFromHere;
 $('#pkQ').oninput=e=>renderPkFull(normCode(e.target.value));
 $('#pkFullList').addEventListener('click',e=>{
   const r=e.target.closest('.pkrow');if(!r)return;
-  const s=STOPS[+r.dataset.si];hidePkScreen();
+  const si=+r.dataset.si,s=STOPS[si];
+  if(DONE.has(si)){
+    // desfaz entrega — pra corrigir um ENTREGUEI tocado sem querer.
+    // fica na própria aba (não fecha, não navega) pra poder desfazer mais de uma se precisar.
+    DONE.delete(si);ARRIVED=null;LASTROUTE=null;save();
+    drawPins();refresh();maybeLeg();startWatch();
+    toast(`Entrega desfeita — parada ${SEQ[si]} voltou pra rota`,3200);
+    speak(`Entrega desfeita. Parada ${SEQ[si]}.`);
+    renderPkFull(normCode($('#pkQ').value));updatePkStats();
+    return;
+  }
+  hidePkScreen();
   if(MAP){setFollow(false);setTimeout(()=>centerOn([s.lat,s.lng],17),340)}
 });
 $('#recenter').onclick=()=>setFollow(!FOLLOW);
@@ -1738,7 +1777,7 @@ window.addEventListener('resize',layoutSheet);
    (InstallApk) baixa a .apk e abre o instalador do Android — que sempre pede
    confirmação, não tem como pular essa tela. Fora do app nativo (navegador
    comum) essa checagem nem roda. */
-const APP_VERSION_CODE=8; // mantenha igual ao versionCode em android/app/build.gradle
+const APP_VERSION_CODE=9; // mantenha igual ao versionCode em android/app/build.gradle
 (function(){
   if(!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()))return;
   const VERSION_URL='https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/version.json';

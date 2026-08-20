@@ -1,6 +1,6 @@
 {
-  "versionCode": 8,
-  "versionName": "0.5.0",
+  "versionCode": 9,
+  "versionName": "0.6.0",
   "apkUrl": "https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/rotafacil.apk",
-  "notes": "Navegação: botão de voltar visível na tela 'Rota pronta', e um novo ícone no mapa (🧳) pra reabrir o carregamento do baú a qualquer momento durante a rota — sem perder nada do progresso."
+  "notes": "Desfazer entrega: toque numa parada já entregue na aba 'Conferir pacotes' pra desfazer. Recalcular a partir daqui: novo botão na mesma aba recalcula a ordem das paradas restantes a partir de onde você está agora, sem mudar os números fixos de cada parada."
 }
