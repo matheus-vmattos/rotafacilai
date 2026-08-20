@@ -894,6 +894,7 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
   display:flex;align-items:center;justify-content:center}
 .hit .t b{display:block;font-size:15px;line-height:1.25}
 .hit .t span{font-size:12.5px;color:var(--mut)}
+.hit .t .loc2{display:block;font-size:12.5px;color:var(--blue2);font-weight:700;margin-top:2px}
 .nohit{background:#FEECEC;border:2px solid #F5BDBD;color:var(--red);border-radius:14px;padding:13px;text-align:center;font-weight:700;font-size:13.5px}
 
 /* baú */
@@ -1932,7 +1933,8 @@ function doSearch(v){
   if(!h.length){r.innerHTML=`<div class="nohit">Nenhum pacote “${esc(q)}” nesta rota</div>`;return}
   const x=h[0],s=STOPS[x.si],d=DONE.has(x.si);
   r.innerHTML=`<div class="hit"><div class="n" style="${d?'background:#16A34A':''}">${SEQ[x.si]}</div>
-    <div class="t"><b>${esc(s.addr)}</b><span>${d?'✅ já entregue':esc([s.hood,s.city].filter(Boolean).join(' · '))}</span></div></div>
+    <div class="t"><b>${esc(s.addr)}</b><span>${d?'✅ já entregue':esc([s.hood,s.city].filter(Boolean).join(' · '))}</span>
+    ${!d?`<span class="loc2">📦 ${esc(pkgLoc(x.p))}</span>`:''}</div></div>
     ${h.length>1?`<div style="text-align:center;color:#7A8698;font-size:12px;margin-top:7px">${h.length} pacotes batem — digite mais um dígito</div>`:''}`;
   r.querySelector('.hit').onclick=()=>{ if(MAP){setFollow(false);closeSheet();setTimeout(()=>centerOn([s.lat,s.lng],17),340)} toast('Parada '+SEQ[x.si]+' no mapa') };
 }
@@ -2187,7 +2189,7 @@ window.addEventListener('resize',layoutSheet);
    (InstallApk) baixa a .apk e abre o instalador do Android — que sempre pede
    confirmação, não tem como pular essa tela. Fora do app nativo (navegador
    comum) essa checagem nem roda. */
-const APP_VERSION_CODE=13; // mantenha igual ao versionCode em android/app/build.gradle
+const APP_VERSION_CODE=14; // mantenha igual ao versionCode em android/app/build.gradle
 (function(){
   if(!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()))return;
   const VERSION_URL='https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/version.json';
@@ -2221,11 +2223,14 @@ const APP_VERSION_CODE=13; // mantenha igual ao versionCode em android/app/build
 let LAST_BACK=0;
 function handleBack(){
   if(ACTIVE_SCAN_STOP){ACTIVE_SCAN_STOP();return}
+  if(!$('#dcScreen').classList.contains('hide')){closeDeliveryCapture();return}
+  if(!$('#rptScreen').classList.contains('hide')){hideReport();return}
   if(!$('#pkScreen').classList.contains('hide')){hidePkScreen();return}
   if(!$('#scHelp').classList.contains('hide')){$('#scHelp').classList.add('hide');$('#scImport').classList.remove('hide');return}
   if(SHEETOPEN){closeSheet();return}
   if(!$('#scBau').classList.contains('hide')){if(BAU_FROM_APP)closeBauOverlay();else backToBrief();return}
   if(!$('#scBrief').classList.contains('hide')){backToImport();return}
+  if(!$('#doneScreen').classList.contains('hide')){$('#doneScreen').classList.add('hide');$('#app').classList.remove('hide');layoutSheet();return}
   const now=Date.now();
   if(now-LAST_BACK<2000){
     const App=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App;
