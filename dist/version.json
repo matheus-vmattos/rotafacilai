@@ -1,6 +1,6 @@
 {
-  "versionCode": 7,
-  "versionName": "0.4.2",
+  "versionCode": 8,
+  "versionName": "0.5.0",
   "apkUrl": "https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/rotafacil.apk",
-  "notes": "Achado num simulado completo (do scan até a última entrega): na tela de 'Rota concluída', os botões 'Abrir no Waze' e 'Pular parada' continuavam aparecendo por engano. Corrigido."
+  "notes": "Navegação: botão de voltar visível na tela 'Rota pronta', e um novo ícone no mapa (🧳) pra reabrir o carregamento do baú a qualquer momento durante a rota — sem perder nada do progresso."
 }

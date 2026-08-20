@@ -1009,11 +1009,11 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
 
 <!-- ========== 2. RESUMO / INICIAR ========== -->
 <div id="scBrief" class="screen hide">
-  <div class="brand">
-    <div class="blogo"><svg viewBox="0 0 24 24" fill="#fff"><path d="M5 18 L12 4 L19 18 L12 15 Z"/></svg></div>
-    <div><div class="bname">Rota pronta</div></div>
+  <div class="pkTop">
+    <button class="iconbtn" id="btnBriefBack" aria-label="voltar"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <div class="pkTopTitle">Rota pronta</div>
   </div>
-  <div class="bsub" id="bSub">—</div>
+  <div class="bsub" id="bSub" style="margin-top:8px">—</div>
   <div class="kpis">
     <div class="kpi"><b id="kStops">0</b><span>paradas</span></div>
     <div class="kpi"><b id="kPkgs">0</b><span>pacotes</span></div>
@@ -1068,6 +1068,7 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
     </div>
     <button class="iconbtn" id="btnFind" aria-label="achar pacote"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16 L21 21"/></svg></button>
     <button class="iconbtn" id="btnPkgs" aria-label="conferir pacotes"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></button>
+    <button class="iconbtn" id="btnGoBau" aria-label="carregar baú"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M7 12h10"/></svg></button>
   </div>
 
   <button id="recenter" class="on" aria-label="seguir"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="8.5"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3"/></svg></button>
@@ -1654,6 +1655,24 @@ function showBau(){$('#scBrief').classList.add('hide');$('#scBau').classList.rem
   resetBauBanner();updateBauUI();setTimeout(()=>$('#bauInput').focus(),300)}
 function backToBrief(){$('#scBau').classList.add('hide');$('#scBrief').classList.remove('hide')}
 function backToImport(){$('#scBrief').classList.add('hide');$('#scImport').classList.remove('hide')}
+
+/* acesso ao baú DEPOIS que a rota já começou (pra quem pulou sem querer,
+   ou quer escanear mais pacotes no meio do dia) — abre por cima do mapa,
+   sem mexer em nada da rota/entregas já feitas. */
+let BAU_FROM_APP=false;
+function showBauFromApp(){
+  BAU_FROM_APP=true;
+  $('#app').classList.add('hide');$('#scBau').classList.remove('hide');
+  $('#btnBauSkip').classList.add('hide');
+  $('#btnBauDone').textContent='VOLTAR PRA ROTA ▸';
+  resetBauBanner();updateBauUI();setTimeout(()=>$('#bauInput').focus(),300);
+}
+function closeBauOverlay(){
+  BAU_FROM_APP=false;
+  $('#scBau').classList.add('hide');$('#app').classList.remove('hide');
+  $('#btnBauSkip').classList.remove('hide');
+  $('#btnBauDone').textContent='PRONTO — INICIAR ROTA ▸';
+}
 let bauDeb=null;
 $('#bauInput').oninput=e=>{clearTimeout(bauDeb);const v=e.target.value;
   bauDeb=setTimeout(()=>{if(v.replace(/[^A-Za-z0-9]/g,'').length>=3)registerScan(v)},450)};
@@ -1662,8 +1681,10 @@ $('#bauScanBtn').onclick=()=>scanBarcode(v=>{$('#bauInput').value=v;registerScan
 $('#btnToBau').onclick=showBau;
 $('#btnSkipBau').onclick=startApp;
 $('#btnBauSkip').onclick=startApp;
-$('#btnBauDone').onclick=startApp;
-$('#btnBauBack').onclick=backToBrief;
+$('#btnBauDone').onclick=()=>{if(BAU_FROM_APP)closeBauOverlay();else startApp()};
+$('#btnBauBack').onclick=()=>{if(BAU_FROM_APP)closeBauOverlay();else backToBrief()};
+$('#btnGoBau').onclick=showBauFromApp;
+$('#btnBriefBack').onclick=backToImport;
 $('#btnHelp').onclick=()=>{$('#scImport').classList.add('hide');$('#scHelp').classList.remove('hide')};
 $('#btnHelpBack').onclick=()=>{$('#scHelp').classList.add('hide');$('#scImport').classList.remove('hide')};
 
@@ -1711,7 +1732,7 @@ function handleBack(){
   if(!$('#pkScreen').classList.contains('hide')){hidePkScreen();return}
   if(!$('#scHelp').classList.contains('hide')){$('#scHelp').classList.add('hide');$('#scImport').classList.remove('hide');return}
   if(SHEETOPEN){closeSheet();return}
-  if(!$('#scBau').classList.contains('hide')){backToBrief();return}
+  if(!$('#scBau').classList.contains('hide')){if(BAU_FROM_APP)closeBauOverlay();else backToBrief();return}
   if(!$('#scBrief').classList.contains('hide')){backToImport();return}
   const now=Date.now();
   if(now-LAST_BACK<2000){
