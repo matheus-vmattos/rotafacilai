@@ -1384,7 +1384,11 @@ async function loginWithGoogle(){
   clearLoginError();
   try{
     if(isNative()){
-      const res=await window.Capacitor.Plugins.FirebaseAuthentication.signInWithGoogle();
+      // useCredentialManager:false usa o fluxo antigo (GoogleSignInClient) em
+      // vez do Credential Manager novo — mais compatível, funciona em
+      // qualquer celular com o Google Play Services, sem depender de uma
+      // API mais recente que nem todo aparelho tem.
+      const res=await window.Capacitor.Plugins.FirebaseAuthentication.signInWithGoogle({useCredentialManager:false});
       const idToken=res&&res.credential&&res.credential.idToken;
       if(!idToken)throw new Error('sem token');
       const mod=await fbAuth();
@@ -2333,7 +2337,7 @@ window.addEventListener('resize',layoutSheet);
    (InstallApk) baixa a .apk e abre o instalador do Android — que sempre pede
    confirmação, não tem como pular essa tela. Fora do app nativo (navegador
    comum) essa checagem nem roda. */
-const APP_VERSION_CODE=17; // mantenha igual ao versionCode em android/app/build.gradle
+const APP_VERSION_CODE=18; // mantenha igual ao versionCode em android/app/build.gradle
 (function(){
   if(!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()))return;
   const VERSION_URL='https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/version.json';

@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node --check *)",
+      "Bash(disown)",
+      "Bash(npx cap copy android *)",
+      "Bash(nohup python3 -m http.server *)",
+      "Bash(pkill -f \"http.server *)",
+      "Bash(./gradlew assembleRelease *)",
+      "Bash(python3 -m http.server *)",
+      "Bash($ANDROID_HOME/build-tools/34.0.0/apksigner verify --print-certs *)",
+      "Bash($ANDROID_HOME/build-tools/34.0.0/aapt dump badging *)",
+      "Bash(/opt/android-sdk/build-tools/34.0.0/apksigner verify --print-certs *)",
+      "Bash(npm test *)"
+    ]
+  }
+}

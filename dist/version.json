@@ -1,6 +1,6 @@
 {
-  "versionCode": 17,
-  "versionName": "0.10.2",
+  "versionCode": 18,
+  "versionName": "0.10.3",
   "apkUrl": "https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/rotafacil.apk",
-  "notes": "Corrige o login com Google — faltava uma configuração no app avisando que o Google era um dos jeitos de entrar permitidos (não era problema no Firebase). Testa de novo o \"Entrar com Google\"."
+  "notes": "Corrige o login com Google de novo: seu celular acusou que não suporta a tecnologia mais nova de login (Credential Manager), então troquei pro método mais antigo e compatível, que é o que a maioria dos apps usa. Testa de novo o \"Entrar com Google\"."
 }
