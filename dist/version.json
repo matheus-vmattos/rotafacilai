@@ -1,6 +1,6 @@
 {
-  "versionCode": 21,
-  "versionName": "0.13.0",
+  "versionCode": 22,
+  "versionName": "0.13.1",
   "apkUrl": "https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/rotafacil.apk",
-  "notes": "Agora dá pra tocar em qualquer parada no mapa (que ainda não foi entregue) e escolher 'Fazer esta agora' pra ir direto pra ela, sem precisar pular as que estão no meio do caminho."
+  "notes": "Agora dá pra escolher qualquer parada pendente direto na lista 'Próximas paradas' (painel de baixo no mapa) e tocar em 'fazer agora' pra ir direto pra ela, sem precisar pular as que estão no meio do caminho — dentro do mesmo visual do resto do app."
 }

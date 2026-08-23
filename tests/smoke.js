@@ -162,29 +162,22 @@ async function run() {
       const nx = nextStop();
       return ORDER.filter((si) => !DONE.has(si) && si !== nx.si)[3];
     });
-    await page.click(`.promote[data-promote="${promoteTarget}"]`);
+    await page.click(`#pkFullList .promote[data-promote="${promoteTarget}"]`);
     await page.waitForTimeout(300);
     assert.strictEqual(await page.evaluate(() => nextStop().si), promoteTarget);
 
-    step = 'tocar no pino do mapa adianta a parada';
+    step = 'adiantar parada pela lista "Próximas paradas" (painel de baixo no mapa)';
     await page.click('#btnPkgsBack'); // fecha o painel de pacotes e volta pro mapa
     await page.waitForSelector('#app:not(.hide)');
-    const pinTarget = await page.evaluate(() => {
+    await page.click('#grip'); // abre o painel de baixo
+    await page.waitForTimeout(300);
+    const nextListTarget = await page.evaluate(() => {
       const nx = nextStop();
       return ORDER.filter((si) => !DONE.has(si) && si !== nx.si)[2];
     });
-    await page.evaluate((si) => {
-      // simula o toque no pino abrindo o popup dele (mesmo caminho do clique real no mapa)
-      const marker = [...PINS.getLayers()].find((l) => l.getPopup && l.getPopup() && l.getPopup().getContent().includes(`data-promote="${si}"`));
-      marker.openPopup();
-    }, pinTarget);
-    const popupBtnSel = `.pinPopupBtn[data-promote="${pinTarget}"]`;
-    await page.waitForSelector(popupBtnSel);
-    // clica via DOM (não por coordenada de tela) pra não depender da animação
-    // de "autopan" do Leaflet movendo o popup enquanto o clique acontece
-    await page.evaluate((sel) => document.querySelector(sel).click(), popupBtnSel);
+    await page.click(`#nextList .promote[data-promote="${nextListTarget}"]`);
     await page.waitForTimeout(300);
-    assert.strictEqual(await page.evaluate(() => nextStop().si), pinTarget, 'tocar no botão do popup do pino deveria tornar essa parada a próxima');
+    assert.strictEqual(await page.evaluate(() => nextStop().si), nextListTarget, 'tocar em "fazer agora" na lista de próximas paradas deveria tornar essa parada a próxima');
 
     step = 'desfazer entrega apaga o registro';
     await page.click('#btnPkgs');
