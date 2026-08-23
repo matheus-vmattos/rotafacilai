@@ -1761,11 +1761,33 @@ function refresh(){
   if(SHEETOPEN)renderMore();
   layoutSheet();
 }
-function skip(i){
+async function skip(i){
   const si=ORDER[i];ORDER.splice(i,1);ORDER.push(si);LASTROUTE=null;save();
   drawPins();refresh();maybeLeg();
   toast('Parada pulada — ela volta no fim da rota, é a última que você vai entregar hoje',4200);
   speak('Parada pulada. Ela volta no fim da rota.');
+  await recalcAfterSkip(si);
+}
+/* depois de pular, reordena as paradas restantes a partir de onde o
+   motorista está agora — a pulada continua sendo a última do dia, só as
+   outras que ficam reorganizadas com dado real de rua. Silencioso se
+   ainda não tiver GPS (não é obrigatório, só uma melhoria automática). */
+async function recalcAfterSkip(skippedSi){
+  if(!MEPOS)return;
+  const doneIds=ORDER.filter(x=>DONE.has(x));
+  const pendingIds=ORDER.filter(x=>!DONE.has(x)&&x!==skippedSi);
+  if(pendingIds.length<2)return;
+  load(true,'recalculando a rota…');
+  const pts=[MEPOS,...pendingIds.map(si=>STOPS[si])];
+  let D;
+  try{D=await osrmTable(pts)}catch(e){D=mtx(pts)}
+  const newLocalOrder=opt(D).slice(1).map(i=>i-1);
+  const newPending=newLocalOrder.map(i=>pendingIds[i]);
+  ORDER=[...doneIds,...newPending,skippedSi];
+  ARRIVED=null;LASTROUTE=null;save();
+  drawPins();refresh();maybeLeg();
+  load(false);
+  toast('Rota recalculada com a nova ordem',2800);
 }
 
 /* ===================== COMPROVANTE DE ENTREGA =====================
@@ -2260,7 +2282,7 @@ window.addEventListener('resize',layoutSheet);
    (InstallApk) baixa a .apk e abre o instalador do Android — que sempre pede
    confirmação, não tem como pular essa tela. Fora do app nativo (navegador
    comum) essa checagem nem roda. */
-const APP_VERSION_CODE=19; // mantenha igual ao versionCode em android/app/build.gradle
+const APP_VERSION_CODE=20; // mantenha igual ao versionCode em android/app/build.gradle
 (function(){
   if(!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()))return;
   const VERSION_URL='https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/version.json';

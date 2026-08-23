@@ -1,6 +1,6 @@
 {
-  "versionCode": 19,
-  "versionName": "0.11.0",
+  "versionCode": 20,
+  "versionName": "0.12.0",
   "apkUrl": "https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/rotafacil.apk",
-  "notes": "Tirei a parte de foto do comprovante de entrega — agora ao tocar em ENTREGUEI já vai direto pra ENTREGUE/NÃO ENTREGUE, sem passar pela câmera. Também adicionei um botão 'Refinar rota com dados de rua' na tela de resumo, sempre disponível (antes só aparecia quando o app detectava uma falha) — funciona parecido com a opção de otimizar rota de outros apps de entrega."
+  "notes": "Ao pular uma parada, o app agora recalcula sozinho a ordem das paradas restantes com dados reais de rua a partir de onde você está (avisa 'recalculando a rota…' enquanto faz isso). A parada pulada continua sendo a última do dia."
 }

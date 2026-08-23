@@ -130,13 +130,30 @@ async function run() {
     assert.strictEqual(rec3.status, 'nao_entregue');
     assert.strictEqual(rec3.reason, 'Cliente ausente');
 
-    step = 'pular parada';
+    step = 'pular parada (e recalcular sozinho a partir de onde está)';
+    // mocka o OSRM pra esse recálculo automático não depender de rede real —
+    // o tamanho da matriz precisa bater com a quantidade de pontos que o
+    // pedido realmente tem (MEPOS + pendentes, sem a que acabou de ser pulada)
+    await page.route('**router.project-osrm.org**', (route) => {
+      const url = route.request().url();
+      const coordsPart = decodeURIComponent(url.split('/driving/')[1].split('?')[0]);
+      const n = coordsPart.split(';').length;
+      const distances = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => (i === j ? 0 : 1000 + Math.abs(i - j) * 300)));
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ distances }) });
+    });
     const beforeSkip = await page.evaluate(() => nextStop().si);
+    const orderLenBefore = await page.evaluate(() => ORDER.length);
     await page.click('#btnSkip');
-    await page.waitForTimeout(300);
-    const orderLen = await page.evaluate(() => ORDER.length);
-    const skippedPos = await page.evaluate((si) => ORDER.indexOf(si), beforeSkip);
-    assert.strictEqual(skippedPos, orderLen - 1, 'parada pulada deveria ir pro fim da fila');
+    await page.waitForTimeout(200);
+    const skippedPosRightAfter = await page.evaluate((si) => ORDER.indexOf(si), beforeSkip);
+    assert.strictEqual(skippedPosRightAfter, orderLenBefore - 1, 'parada pulada deveria ir pro fim da fila na hora');
+    await page.waitForFunction(() => document.getElementById('load').classList.contains('hide'), null, { timeout: 8000 }).catch(() => {});
+    await page.waitForTimeout(200);
+    const orderLenAfter = await page.evaluate(() => ORDER.length);
+    const skippedPosAfterRecalc = await page.evaluate((si) => ORDER.indexOf(si), beforeSkip);
+    assert.strictEqual(orderLenAfter, orderLenBefore, 'nenhuma parada pode sumir no recálculo automático');
+    assert.strictEqual(skippedPosAfterRecalc, orderLenAfter - 1, 'parada pulada continua sendo a última depois do recálculo automático');
+    await page.unroute('**router.project-osrm.org**');
 
     step = 'adiantar parada (promover)';
     await page.click('#btnPkgs');
