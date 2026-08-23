@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "342330462678",
+    "project_id": "rota-facil-f0eb6",
+    "storage_bucket": "rota-facil-f0eb6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:342330462678:android:75b3ff436d7567f40a9477",
+        "android_client_info": {
+          "package_name": "com.rotafacil.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "342330462678-7j07vl38pq40p8esteo9oahus3fnigaf.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCuzKQulYU5brFOtcURA8Z4Eb0jaF0jgV4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "342330462678-7j07vl38pq40p8esteo9oahus3fnigaf.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

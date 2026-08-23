@@ -11,9 +11,9 @@ android/.idea/
 # dados reais de teste (endereços/clientes) — nunca comitar
 testdata/
 
-# credenciais do Firebase, uma vez que existirem — nunca comitar
-# (o .firebaserc.example, sem segredo nenhum, continua versionado)
-backend/.firebaserc
+# chave de admin do Firebase (Service Account) — essa sim é secreta de
+# verdade, dá acesso total ao backend. NUNCA comitar.
+# (google-services.json e .firebaserc NÃO são segredo — identificam o
+# app/projeto, mas não dão acesso a nada sozinhos; por isso ficam
+# versionados normalmente, senão o build quebra em qualquer clone novo)
 backend/serviceAccountKey*.json
-android/app/google-services.json
-**/google-services.json
