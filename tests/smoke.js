@@ -96,6 +96,39 @@ async function run() {
     await page.waitForSelector('#app:not(.hide)');
     await page.waitForTimeout(800);
 
+    step = 'cabeçalho de números (paradas/pacotes/km/faltam) no mapa';
+    const headerStats = await page.evaluate(() => ({
+      paradas: document.querySelector('#app .js-paradas').textContent,
+      pacotes: document.querySelector('#app .js-pacotes').textContent,
+      faltam: document.querySelector('#app .js-faltam').textContent,
+      tot: ORDER.length,
+      pk: STOPS.reduce((s, x) => s + x.pkgs.length, 0),
+    }));
+    assert.strictEqual(headerStats.paradas, String(headerStats.tot), 'cabeçalho deveria mostrar o total de paradas');
+    assert.strictEqual(headerStats.pacotes, String(headerStats.pk), 'cabeçalho deveria mostrar o total de pacotes');
+    assert.strictEqual(headerStats.faltam, String(headerStats.tot), 'no começo da rota, faltam deveria ser igual ao total de paradas');
+
+    step = 'abas ROTA / MAPA / CARREGAR BAÚ navegam e mantêm os números em sincronia';
+    await page.click('#btnPkgs'); // aba ROTA
+    await page.waitForSelector('#pkScreen:not(.hide)');
+    const pkHeaderStats = await page.evaluate(() => ({
+      paradas: document.querySelector('#pkScreen .js-paradas').textContent,
+      faltam: document.querySelector('#pkScreen .js-faltam').textContent,
+    }));
+    assert.strictEqual(pkHeaderStats.paradas, headerStats.paradas, 'a aba ROTA deveria mostrar os mesmos números do mapa');
+    assert.strictEqual(pkHeaderStats.faltam, headerStats.faltam, 'a aba ROTA deveria mostrar os mesmos números do mapa');
+    await page.click('#tabBauFromPk'); // ROTA -> CARREGAR BAÚ
+    await page.waitForSelector('#scBau:not(.hide)');
+    // volta pro mapa pelo botão da própria tela do baú (fluxo já existente)
+    await page.click('#btnBauDone');
+    await page.waitForSelector('#app:not(.hide)');
+
+    step = 'ver rota inteira (visão geral) não quebra o mapa';
+    await page.click('#btnRouteOverview');
+    await page.waitForTimeout(300);
+    await page.click('#btnRouteOverview'); // desliga de novo
+    await page.waitForTimeout(300);
+
     step = 'busca rápida (lupa) deve mostrar local do baú';
     await page.click('#btnFind');
     await page.waitForTimeout(300);

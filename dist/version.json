@@ -1,6 +1,6 @@
 {
-  "versionCode": 22,
-  "versionName": "0.13.1",
+  "versionCode": 23,
+  "versionName": "0.14.0",
   "apkUrl": "https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/rotafacil.apk",
-  "notes": "Agora dá pra escolher qualquer parada pendente direto na lista 'Próximas paradas' (painel de baixo no mapa) e tocar em 'fazer agora' pra ir direto pra ela, sem precisar pular as que estão no meio do caminho — dentro do mesmo visual do resto do app."
+  "notes": "Novo cabeçalho no mapa e na tela de pacotes com os números da rota (paradas, pacotes, km, faltam) sempre visíveis, e abas ROTA / MAPA / CARREGAR BAÚ pra trocar de tela rápido — inspirado no layout da primeira versão que foi elogiado. O botão 'ver rota inteira' agora também afasta o zoom pra mostrar todas as paradas de uma vez no mapa."
 }

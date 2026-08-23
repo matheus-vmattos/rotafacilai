@@ -797,14 +797,22 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
 /* --- barra de progresso flutuante --- */
 #top{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));left:10px;right:10px;z-index:600;
   background:rgba(255,255,255,.97);border-radius:16px;box-shadow:var(--sh);padding:11px 13px;
-  display:flex;align-items:center;gap:12px;backdrop-filter:blur(8px)}
-#top .pg{flex:1}
-#top .pgtop{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--mut);font-weight:700}
-#top .pgtop b{font-size:16px;color:var(--ink);font-weight:800}
-#top .bar{height:7px;background:var(--line);border-radius:5px;margin-top:6px;overflow:hidden}
-#top .bar i{display:block;height:100%;background:var(--green);border-radius:5px;transition:width .35s}
+  backdrop-filter:blur(8px)}
 .iconbtn{width:42px;height:42px;border-radius:13px;background:var(--ink);color:#fff;display:flex;
   align-items:center;justify-content:center;font-size:17px;font-weight:800;flex:0 0 auto}
+
+/* --- barra de números (paradas/pacotes/km/faltam) + abas ROTA/MAPA/BAÚ,
+   reaproveitada no topo do mapa e na tela de conferir pacotes pra dar a
+   mesma visão geral e o mesmo jeito de trocar de tela nos dois lugares --- */
+.statsBar{display:flex;align-items:center;gap:6px}
+.statsBar .stat{flex:1;min-width:0;text-align:center}
+.statsBar .stat b{display:block;font-size:18px;font-weight:800;letter-spacing:-.5px;color:var(--ink);line-height:1.15}
+.statsBar .stat span{display:block;font-size:9px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin-top:1px}
+.statsBar .iconbtn{width:36px;height:36px;border-radius:11px;font-size:15px}
+.tabBar{display:flex;gap:6px;margin-top:10px}
+.tabBtn{flex:1;background:var(--bg);color:var(--mut);font-weight:800;font-size:11px;letter-spacing:.2px;
+  padding:10px 3px;border-radius:11px;text-align:center;border:0}
+.tabBtn.on{background:var(--ink);color:#fff}
 .helpq{margin-left:auto;width:34px;height:34px;border-radius:50%;font-size:16px;
   background:var(--paper);color:var(--mut);border:1.5px solid var(--line)}
 
@@ -1148,13 +1156,18 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
   <div id="map"></div>
 
   <div id="top">
-    <div class="pg">
-      <div class="pgtop"><span><b id="tDone">0</b> de <b id="tTot">0</b> entregues</span><span id="tKm">—</span></div>
-      <div class="bar"><i id="tBar" style="width:0%"></i></div>
+    <div class="statsBar">
+      <div class="stat"><b class="js-paradas">0</b><span>paradas</span></div>
+      <div class="stat"><b class="js-pacotes">0</b><span>pacotes</span></div>
+      <div class="stat"><b class="js-km">0</b><span>km</span></div>
+      <div class="stat"><b class="js-faltam">0</b><span>faltam</span></div>
+      <button class="iconbtn" id="btnFind" aria-label="achar pacote"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16 L21 21"/></svg></button>
     </div>
-    <button class="iconbtn" id="btnFind" aria-label="achar pacote"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16 L21 21"/></svg></button>
-    <button class="iconbtn" id="btnPkgs" aria-label="conferir pacotes"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></button>
-    <button class="iconbtn" id="btnGoBau" aria-label="carregar baú"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M7 12h10"/></svg></button>
+    <div class="tabBar">
+      <button class="tabBtn on" id="tabMapa">MAPA</button>
+      <button class="tabBtn" id="btnPkgs">ROTA</button>
+      <button class="tabBtn" id="btnGoBau">CARREGAR BAÚ</button>
+    </div>
   </div>
 
   <button id="recenter" class="on" aria-label="seguir"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="8.5"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3"/></svg></button>
@@ -1204,6 +1217,17 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
   <div class="pkTop">
     <button class="iconbtn" id="btnPkgsBack" aria-label="voltar"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
     <div class="pkTopTitle">Conferir pacotes</div>
+  </div>
+  <div class="statsBar" style="margin-top:14px">
+    <div class="stat"><b class="js-paradas">0</b><span>paradas</span></div>
+    <div class="stat"><b class="js-pacotes">0</b><span>pacotes</span></div>
+    <div class="stat"><b class="js-km">0</b><span>km</span></div>
+    <div class="stat"><b class="js-faltam">0</b><span>faltam</span></div>
+  </div>
+  <div class="tabBar">
+    <button class="tabBtn" id="tabMapaFromPk">MAPA</button>
+    <button class="tabBtn on" id="tabRota">ROTA</button>
+    <button class="tabBtn" id="tabBauFromPk">CARREGAR BAÚ</button>
   </div>
   <div class="srch" style="margin-top:16px"><input id="pkQ" maxlength="15" placeholder="buscar por últimos dígitos" autocomplete="off"></div>
   <div id="pkStats" class="pkStats">—</div>
@@ -1666,8 +1690,25 @@ function drawRouteOverview(){
 function toggleRouteOverview(){
   ROUTE_OVERVIEW_ON=!ROUTE_OVERVIEW_ON;
   $('#btnRouteOverview').classList.toggle('on',ROUTE_OVERVIEW_ON);
-  if(ROUTE_OVERVIEW_ON)drawRouteOverview();
-  else if(ROUTE_LINE){MAP.removeLayer(ROUTE_LINE);ROUTE_LINE=null}
+  if(ROUTE_OVERVIEW_ON){
+    drawRouteOverview();
+    // "ver rota inteira": afasta o zoom pra mostrar todas as paradas de
+    // uma vez (era o que os motoristas mais elogiavam na 1ª versão do
+    // app) — por isso também solta o "seguir", senão o GPS puxa o mapa
+    // de volta pra posição atual e desfaz a visão geral na hora
+    setFollow(false);
+    const pending=ORDER.filter(si=>!DONE.has(si));
+    if(MAP&&pending.length){
+      const pts=pending.map(si=>[STOPS[si].lat,STOPS[si].lng]);
+      if(MEPOS)pts.push([MEPOS.lat,MEPOS.lng]);
+      MAP.fitBounds(pts,{padding:[36,36]});
+    }
+  }else{
+    if(ROUTE_LINE){MAP.removeLayer(ROUTE_LINE);ROUTE_LINE=null}
+    setFollow(true);
+    const nx=nextStop();
+    if(MAP&&nx)centerOn([nx.s.lat,nx.s.lng],16);
+  }
 }
 function drawMe(){
   if(!MAP||!MEPOS)return;
@@ -1711,12 +1752,17 @@ async function maybeLeg(){
 }
 
 /* ===================== CARD ===================== */
+function syncStatsHeader(){
+  const tot=ORDER.length,fin=DONE.size;
+  document.querySelectorAll('.js-paradas').forEach(el=>el.textContent=tot);
+  document.querySelectorAll('.js-pacotes').forEach(el=>el.textContent=bauTotal());
+  document.querySelectorAll('.js-km').forEach(el=>el.textContent=KM.toFixed(1));
+  document.querySelectorAll('.js-faltam').forEach(el=>el.textContent=tot-fin);
+}
 function refresh(){
   const tot=ORDER.length,fin=DONE.size;
-  $('#tDone').textContent=fin;$('#tTot').textContent=tot;
-  $('#tBar').style.width=(tot?fin/tot*100:0)+'%';
+  syncStatsHeader();
   const nx=nextStop();
-  $('#tKm').textContent=nx?`faltam ${tot-fin}`:'concluída';
 
   if(!nx){
     $('#cChip').textContent='FIM';$('#cChip').className='chip g';
@@ -2117,6 +2163,8 @@ $('#btnFind').onclick=()=>{openSheet();setTimeout(()=>{$('#q').focus();$('#q').s
 $('#q').oninput=e=>doSearch(e.target.value);
 $('#btnPkgs').onclick=showPkScreen;
 $('#btnPkgsBack').onclick=hidePkScreen;
+$('#tabMapaFromPk').onclick=hidePkScreen;
+$('#tabBauFromPk').onclick=()=>{hidePkScreen();showBauFromApp()};
 $('#btnRecalc').onclick=recalcFromHere;
 $('#pkQ').oninput=e=>renderPkFull(normCode(e.target.value));
 $('#pkFullList').addEventListener('click',e=>{
@@ -2289,7 +2337,7 @@ window.addEventListener('resize',layoutSheet);
    (InstallApk) baixa a .apk e abre o instalador do Android — que sempre pede
    confirmação, não tem como pular essa tela. Fora do app nativo (navegador
    comum) essa checagem nem roda. */
-const APP_VERSION_CODE=22; // mantenha igual ao versionCode em android/app/build.gradle
+const APP_VERSION_CODE=23; // mantenha igual ao versionCode em android/app/build.gradle
 (function(){
   if(!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()))return;
   const VERSION_URL='https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/version.json';
