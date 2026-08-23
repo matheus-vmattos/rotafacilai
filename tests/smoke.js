@@ -52,6 +52,9 @@ async function run() {
   const page = await context.newPage();
   const pageErrors = [];
   page.on('pageerror', (err) => pageErrors.push(err.message));
+  // pula o login de verdade (não testamos Firebase Auth aqui — precisa de
+  // credenciais reais e depende de rede; ver initAuth() em www/index.html)
+  await page.addInitScript(() => { window.__TEST_BYPASS_LOGIN__ = true; });
 
   let step = 'início';
   try {

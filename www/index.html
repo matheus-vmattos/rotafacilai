@@ -751,6 +751,14 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
 .note{margin-top:18px;background:#EFF4FF;border-radius:14px;padding:14px 15px;font-size:13px;color:#2C3E6B;line-height:1.55}
 .note b{color:var(--blue2)}
 
+/* ---- login ---- */
+.textinput{width:100%;border:1.5px solid var(--line);border-radius:14px;padding:16px;font-size:16px;
+  background:var(--paper);color:var(--ink);margin-top:10px}
+.textinput:focus{border-color:var(--blue);outline:none}
+.orline{display:flex;align-items:center;gap:10px;margin:18px 0;color:var(--mut);font-size:12.5px;font-weight:700;text-transform:uppercase}
+.orline::before,.orline::after{content:'';flex:1;height:1px;background:var(--line)}
+.loginErr{margin-top:14px;background:#FEECEC;border:2px solid #F5BDBD;color:var(--red);border-radius:14px;padding:13px;text-align:center;font-weight:700;font-size:13.5px}
+
 #resume{background:var(--paper);border:2px solid var(--blue);border-radius:20px;padding:18px;margin-bottom:16px}
 #resume .rt{font-weight:800;font-size:18px}
 #resume .rs{color:var(--mut);font-size:13.5px;margin-top:4px;line-height:1.5}
@@ -989,8 +997,29 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
 </head>
 <body>
 
+<!-- ========== 0. LOGIN ========== -->
+<div id="scLogin" class="screen hide">
+  <div class="brand">
+    <div class="blogo"><svg viewBox="0 0 24 24" fill="#fff"><path d="M5 18 L12 4 L19 18 L12 15 Z"/></svg></div>
+    <div><div class="bname">Rota Fácil</div></div>
+  </div>
+  <div class="bsub">Entre pra começar sua rota</div>
+  <div class="spacer"></div>
+  <button class="btn big" id="btnLoginGoogle" style="background:#fff;color:#3C4043;border:1.5px solid var(--line);box-shadow:none">
+    <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.7 2.4 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.1 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.2-.4-4.7H24v9.1h12.7c-.6 3-2.3 5.6-4.9 7.3l7.6 5.9c4.4-4.1 7.1-10.1 7.1-17.6z"/><path fill="#FBBC05" d="M10.5 19.3c-.5 1.5-.8 3.1-.8 4.7s.3 3.2.8 4.7l-7.9 6.1C.9 31.7 0 27.9 0 24s.9-7.7 2.6-10.8l7.9 6.1z"/><path fill="#34A853" d="M24 48c6.2 0 11.5-2 15.3-5.6l-7.6-5.9c-2.1 1.4-4.8 2.3-7.7 2.3-6.3 0-11.6-3.6-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
+    Entrar com Google
+  </button>
+  <div class="orline">ou</div>
+  <input id="loginEmail" class="textinput" type="email" placeholder="e-mail" autocomplete="email">
+  <input id="loginPass" class="textinput" type="password" placeholder="senha" autocomplete="current-password">
+  <button class="btn plain" id="btnLoginEmail" style="margin-top:14px">Entrar</button>
+  <button class="btn link" id="btnLoginSignup">criar uma conta nova</button>
+  <div id="loginError" class="loginErr hide"></div>
+  <div class="spacer"></div>
+</div>
+
 <!-- ========== 1. IMPORTAR ========== -->
-<div id="scImport" class="screen">
+<div id="scImport" class="screen hide">
   <div class="brand">
     <div class="blogo"><svg viewBox="0 0 24 24" fill="#fff"><path d="M5 18 L12 4 L19 18 L12 15 Z"/></svg></div>
     <div><div class="bname">Rota Fácil</div></div>
@@ -1017,6 +1046,8 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
   <div class="spacer"></div>
   <div class="note"><b>Nada de digitar endereço.</b> A planilha da SPX já traz a localização de cada pacote.
     O app agrupa, calcula a melhor ordem e mostra <b>qual pacote pegar em cada parada</b>.</div>
+  <div id="whoami" class="bsub" style="text-align:center;margin:14px 0 0"></div>
+  <button class="btn link" id="btnLogout">sair da conta</button>
 </div>
 
 <!-- ========== AJUDA ========== -->
@@ -1291,6 +1322,115 @@ const $=s=>document.querySelector(s);
 
 function toast(m,ms=2600){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),ms)}
 function load(on,txt){$('#load').classList.toggle('hide',!on);if(txt)$('#loadTxt').textContent=txt}
+
+/* ===================== LOGIN (Firebase Auth) =====================
+   Login obrigatório pra usar o app: por Google (dentro do app
+   instalado usa o plugin nativo — o Google bloqueia login por Google
+   dentro de uma WebView comum; no navegador cai pro popup do SDK) ou
+   por e-mail e senha (é só uma chamada de rede, funciona igual em
+   qualquer lugar, sem essa restrição). Carrega o SDK do Firebase sob
+   demanda (import dinâmico) pra não pesar o app pra quem só abre o
+   mapa — só baixa isso na hora de entrar. */
+const FIREBASE_CONFIG={
+  apiKey:'AIzaSyCuzKQulYU5brFOtcURA8Z4Eb0jaF0jgV4',
+  authDomain:'rota-facil-f0eb6.firebaseapp.com',
+  projectId:'rota-facil-f0eb6',
+  storageBucket:'rota-facil-f0eb6.firebasestorage.app',
+  messagingSenderId:'342330462678',
+  appId:'1:342330462678:android:75b3ff436d7567f40a9477'
+};
+let AUTH=null,CURRENT_USER=null,FB_AUTH_MOD=null;
+function isNative(){return!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform())}
+async function fbAuth(){
+  if(FB_AUTH_MOD)return FB_AUTH_MOD;
+  const {initializeApp}=await import('https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js');
+  const mod=await import('https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js');
+  AUTH=mod.getAuth(initializeApp(FIREBASE_CONFIG));
+  FB_AUTH_MOD=mod;
+  return mod;
+}
+function showLoginError(msg){const el=$('#loginError');el.textContent=msg;el.classList.remove('hide')}
+function clearLoginError(){$('#loginError').classList.add('hide')}
+function showApp(){
+  $('#scLogin').classList.add('hide');$('#scImport').classList.remove('hide');
+  $('#whoami').textContent=CURRENT_USER?`conectado como ${CURRENT_USER.email||CURRENT_USER.displayName||''}`:'';
+}
+function showLoginScreen(){$('#scImport').classList.add('hide');$('#scLogin').classList.remove('hide')}
+async function initAuth(){
+  // atalho só pra teste automatizado (tests/smoke.js) pular o login de
+  // verdade — só existe se algo rodar ANTES do script da própria página
+  // (page.addInitScript do Playwright); uma página hostil não consegue
+  // fazer isso sozinha, então não é uma porta dos fundos de produção.
+  if(window.__TEST_BYPASS_LOGIN__){
+    CURRENT_USER={email:'teste@rotafacil.test'};showApp();return;
+  }
+  load(true,'verificando login…');
+  try{
+    let first=true;
+    const mod=await fbAuth();
+    mod.onAuthStateChanged(AUTH,user=>{
+      CURRENT_USER=user;if(user)showApp();else showLoginScreen();
+      if(first){first=false;load(false)}
+    });
+  }catch(e){
+    // sem internet ou o Firebase não carregou — não trava num carregando
+    // pra sempre: mostra a tela de login mesmo assim (os botões tentam
+    // carregar de novo sozinhos quando tocados)
+    load(false);showLoginScreen();
+    showLoginError('Sem conexão pra verificar o login — toque em Entrar pra tentar de novo');
+  }
+}
+async function loginWithGoogle(){
+  clearLoginError();
+  try{
+    if(isNative()){
+      const res=await window.Capacitor.Plugins.FirebaseAuthentication.signInWithGoogle();
+      const idToken=res&&res.credential&&res.credential.idToken;
+      if(!idToken)throw new Error('sem token');
+      const mod=await fbAuth();
+      await mod.signInWithCredential(AUTH,mod.GoogleAuthProvider.credential(idToken));
+    }else{
+      const mod=await fbAuth();
+      await mod.signInWithPopup(AUTH,new mod.GoogleAuthProvider());
+    }
+  }catch(e){showLoginError('Não consegui entrar com Google — tenta de novo ou usa e-mail e senha')}
+}
+function loginErrMsg(e){
+  const c=(e&&e.code)||'';
+  if(c.includes('wrong-password')||c.includes('invalid-credential'))return'E-mail ou senha errados';
+  if(c.includes('user-not-found'))return'Não achei essa conta — toque em "criar uma conta nova"';
+  if(c.includes('email-already-in-use'))return'Já existe uma conta com esse e-mail — toque em "Entrar"';
+  if(c.includes('invalid-email'))return'E-mail inválido';
+  if(c.includes('weak-password'))return'Senha fraca demais — usa pelo menos 6 letras/números';
+  return'Não consegui entrar — confere o e-mail e a senha';
+}
+async function loginWithEmail(){
+  clearLoginError();
+  const email=$('#loginEmail').value.trim(),pass=$('#loginPass').value;
+  if(!email||!pass)return showLoginError('Preenche o e-mail e a senha');
+  try{const mod=await fbAuth();await mod.signInWithEmailAndPassword(AUTH,email,pass)}
+  catch(e){showLoginError(loginErrMsg(e))}
+}
+async function signupWithEmail(){
+  clearLoginError();
+  const email=$('#loginEmail').value.trim(),pass=$('#loginPass').value;
+  if(!email||!pass)return showLoginError('Preenche o e-mail e a senha');
+  if(pass.length<6)return showLoginError('A senha precisa ter pelo menos 6 letras/números');
+  try{const mod=await fbAuth();await mod.createUserWithEmailAndPassword(AUTH,email,pass)}
+  catch(e){showLoginError(loginErrMsg(e))}
+}
+async function logout(){
+  try{
+    if(isNative()&&window.Capacitor.Plugins.FirebaseAuthentication)
+      await window.Capacitor.Plugins.FirebaseAuthentication.signOut();
+    const mod=await fbAuth();await mod.signOut(AUTH);
+  }catch(e){}
+}
+$('#btnLoginGoogle').onclick=loginWithGoogle;
+$('#btnLoginEmail').onclick=loginWithEmail;
+$('#btnLoginSignup').onclick=signupWithEmail;
+$('#btnLogout').onclick=()=>{if(confirm('Sair da conta?'))logout()};
+initAuth();
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function hav(a,b){const R=6371,p=Math.PI/180,dla=(b.lat-a.lat)*p,dlo=(b.lng-a.lng)*p;
   const x=Math.sin(dla/2)**2+Math.cos(a.lat*p)*Math.cos(b.lat*p)*Math.sin(dlo/2)**2;return 2*R*Math.asin(Math.sqrt(x))}
