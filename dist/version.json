@@ -1,6 +1,6 @@
 {
-  "versionCode": 24,
-  "versionName": "0.15.0",
+  "versionCode": 25,
+  "versionName": "0.15.1",
   "apkUrl": "https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/rotafacil.apk",
-  "notes": "Dois botões de 'refinar rota' viraram um só. E o app agora avisa (na tela e falando) quando você está fisicamente perto de uma parada que ainda não é a próxima da ordem, com um botão de 'fazer agora' — pra quando você passa perto de uma entrega por acaso, sem precisar pular as do meio. Paradas muito próximas no mapa também passaram a se agrupar num único pino com a quantidade, em vez de ficarem ilegíveis umas em cima das outras."
+  "notes": "Corrige a checagem de atualização automática (o link do servidor às vezes ficava com uma cópia velha guardada por alguns minutos depois de cada publicação, e o app não via a versão nova). Também adicionou um botão 'verificar atualização agora' na tela de ajuda (?), pra conferir na hora sem precisar fechar e abrir o app."
 }

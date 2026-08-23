@@ -1114,6 +1114,10 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
     → App 100% nativo com GPS funcionando de tela apagada<br>
     → Login e sincronização entre aparelhos
   </div>
+
+  <div class="mtitle">Versão instalada</div>
+  <div class="helpList" id="appVerLine">—</div>
+  <button class="btn plain" id="btnCheckUpdate" style="margin-top:6px">🔄 Verificar atualização agora</button>
   <div class="spacer"></div>
 </div>
 
@@ -2433,29 +2437,47 @@ window.addEventListener('resize',layoutSheet);
    (InstallApk) baixa a .apk e abre o instalador do Android — que sempre pede
    confirmação, não tem como pular essa tela. Fora do app nativo (navegador
    comum) essa checagem nem roda. */
-const APP_VERSION_CODE=24; // mantenha igual ao versionCode em android/app/build.gradle
+const APP_VERSION_CODE=25; // mantenha igual ao versionCode em android/app/build.gradle
+const APP_VERSION_NAME='0.15.1'; // mantenha igual ao versionName em android/app/build.gradle
+if($('#appVerLine'))$('#appVerLine').textContent=`v${APP_VERSION_NAME} (código ${APP_VERSION_CODE})`;
 (function(){
-  if(!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()))return;
+  const isNative=window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform();
   const VERSION_URL='https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/version.json';
   let remote=null;
-  async function check(){
-    try{const r=await fetch(VERSION_URL,{cache:'no-store'});const j=await r.json();
-      if(j.versionCode>APP_VERSION_CODE){remote=j;
+  async function check(manual){
+    try{
+      // cache:'no-store' só evita cache do navegador — o CDN do GitHub (raw.githubusercontent.com)
+      // ainda pode servir uma cópia velha por alguns minutos após um push, então quebra esse
+      // cache também com um parâmetro que muda a cada chamada
+      const r=await fetch(VERSION_URL+'?t='+Date.now(),{cache:'no-store'});
+      const j=await r.json();
+      if(j.versionCode>APP_VERSION_CODE){
+        remote=j;
         $('#updBanner').querySelector('.t').textContent=`Nova versão disponível (${j.versionName||j.versionCode})`;
-        $('#updBanner').classList.add('on')}
-    }catch(e){}
+        $('#updBanner').classList.add('on');
+        if(manual)toast('Tem atualização nova! Toque em ATUALIZAR no topo da tela',3600);
+      }else if(manual){
+        toast('Você já está na versão mais atual (v'+APP_VERSION_NAME+')',3200);
+      }
+    }catch(e){if(manual)toast('Não consegui checar agora — confira sua internet e tenta de novo',3600)}
   }
   $('#updBtn').onclick=async()=>{
-    if(!remote)return;
+    if(!remote||!isNative)return;
     const btn=$('#updBtn');btn.textContent='Baixando…';btn.disabled=true;
     try{
       const res=await window.Capacitor.Plugins.InstallApk.downloadAndInstall({url:remote.apkUrl});
-      if(res.status==='needs_permission')
-        toast('Autorize "instalar apps desconhecidos" e toque em Atualizar de novo',4500);
+      if(res.status==='needs_permission'){
+        $('#updBanner').querySelector('.t').textContent='Autorize "instalar apps desconhecidos" pro Rota Fácil, depois toque em ATUALIZAR de novo';
+        toast('Autorize a instalação nas configurações e volte aqui',4500);
+      }
     }catch(e){toast('Não consegui baixar a atualização — tenta de novo mais tarde',4000)}
     btn.textContent='ATUALIZAR';btn.disabled=false;
   };
-  setTimeout(check,1200);
+  $('#btnCheckUpdate').onclick=()=>{
+    if(!isNative)return toast('A atualização automática só funciona dentro do app instalado, não no navegador',3800);
+    check(true);
+  };
+  if(isNative)setTimeout(check,1200);
 })();
 
 /* ===================== BOTÃO FÍSICO DE VOLTAR (Android) =====================
