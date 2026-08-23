@@ -1,6 +1,6 @@
 {
-  "versionCode": 15,
-  "versionName": "0.10.0",
+  "versionCode": 16,
+  "versionName": "0.10.1",
   "apkUrl": "https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/rotafacil.apk",
-  "notes": "Login obrigatório pra usar o app: entre com sua conta Google ou crie uma conta com e-mail e senha. Tem um botão de 'sair da conta' na tela inicial. Essa é a primeira versão com login — teste bem antes de usar numa rota real, e me avisa se algo travar."
+  "notes": "Ajuste pra diagnosticar o problema no login com Google: a mensagem de erro agora mostra o motivo técnico junto, pra eu conseguir identificar o que está impedindo o login."
 }
