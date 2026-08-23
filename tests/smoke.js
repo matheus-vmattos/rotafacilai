@@ -108,6 +108,43 @@ async function run() {
     assert.strictEqual(headerStats.pacotes, String(headerStats.pk), 'cabeçalho deveria mostrar o total de pacotes');
     assert.strictEqual(headerStats.faltam, String(headerStats.tot), 'no começo da rota, faltam deveria ser igual ao total de paradas');
 
+    step = 'aviso "perto de você" quando o motorista está perto de uma parada fora da ordem';
+    const nearTarget = await page.evaluate(() => {
+      const nx = nextStop();
+      const si = ORDER.find((x) => !DONE.has(x) && x !== nx.si);
+      return { si, lat: STOPS[si].lat, lng: STOPS[si].lng, seq: SEQ[si] };
+    });
+    await context.setGeolocation({ latitude: nearTarget.lat, longitude: nearTarget.lng });
+    await page.waitForTimeout(2500);
+    const nearBannerVisible = await page.evaluate(() => !document.getElementById('nearBanner').classList.contains('hide'));
+    const nearBannerTxt = await page.evaluate(() => document.getElementById('nbSeq').textContent);
+    assert.ok(nearBannerVisible, 'deveria avisar quando o motorista está perto de uma parada fora da ordem');
+    assert.ok(nearBannerTxt.includes(String(nearTarget.seq)), 'o aviso deveria citar o número certo da parada próxima');
+    await page.click('#nbGo');
+    await page.waitForTimeout(300);
+    assert.strictEqual(await page.evaluate(() => nextStop().si), nearTarget.si, 'tocar em "fazer agora" no aviso deveria promover a parada certa');
+    await context.setGeolocation({ latitude: -22.924763, longitude: -42.482856 }); // volta pra posição original
+
+    step = 'paradas muito próximas na tela viram um grupo, não pinos ilegíveis um em cima do outro';
+    const clusterCount = await page.evaluate(() => {
+      const baseSi = STOPS.length;
+      const base = MEPOS || { lat: -22.9, lng: -42.4 };
+      for (let i = 0; i < 6; i++) {
+        STOPS.push({ lat: base.lat + i * 0.00003, lng: base.lng + i * 0.00003, addr: 'Rua Teste ' + i, hood: '', city: '', cep: '', pkgs: ['PKGTESTE' + i] });
+        ORDER.push(baseSi + i);
+        SEQ[baseSi + i] = ORDER.length;
+      }
+      drawPins();
+      const n = [...PINS.getLayers()].filter((l) => l.getIcon && l.getIcon().options.html.includes('class="pin cluster"')).length;
+      // desfaz a fabricação — o resto do teste simula uma rota real, sem pacotes de mentira misturados
+      STOPS.length = baseSi;
+      ORDER.length -= 6;
+      for (let i = 0; i < 6; i++) delete SEQ[baseSi + i];
+      drawPins();
+      return n;
+    });
+    assert.ok(clusterCount >= 1, 'paradas muito próximas na tela deveriam se agrupar em pelo menos 1 pino de grupo');
+
     step = 'abas ROTA / MAPA / CARREGAR BAÚ navegam e mantêm os números em sincronia';
     await page.click('#btnPkgs'); // aba ROTA
     await page.waitForSelector('#pkScreen:not(.hide)');

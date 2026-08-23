@@ -845,7 +845,28 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
 .pin.done{background:#CBD5E1;color:#64748B;width:22px;height:22px;font-size:10px;border-width:2px}
 .pin.failed{background:#FCA5A5;color:#7F1D1D;width:22px;height:22px;font-size:10px;border-width:2px}
 .pin.soon{background:var(--ink2)}
+.pin.near{background:var(--amber);box-shadow:0 2px 8px rgba(0,0,0,.35),0 0 0 5px rgba(217,119,6,.28);
+  animation:nearPulse 1.6s ease-out infinite}
+@keyframes nearPulse{
+  0%{box-shadow:0 2px 8px rgba(0,0,0,.35),0 0 0 0 rgba(217,119,6,.55)}
+  100%{box-shadow:0 2px 8px rgba(0,0,0,.35),0 0 0 10px rgba(217,119,6,0)}
+}
+.pin.cluster{width:44px!important;height:30px!important;border-radius:14px!important;
+  flex-direction:column;gap:0;background:var(--ink2);font-size:13px}
+.pin.cluster i{font-style:normal;font-size:7.5px;text-transform:uppercase;letter-spacing:.3px;
+  opacity:.85;font-weight:700}
 .leaflet-div-icon{background:none;border:0}
+
+/* --- aviso de parada perto de você, fora da ordem da rota --- */
+.nearBanner{position:absolute;left:10px;right:10px;z-index:650;
+  background:var(--ink);color:#fff;border-radius:16px;box-shadow:var(--sh);
+  padding:12px 8px 12px 14px;display:flex;align-items:center;gap:10px}
+.nearBanner .nb-txt{flex:1;min-width:0;font-size:13px;font-weight:700;line-height:1.35}
+.nearBanner .nb-txt b{color:var(--amber)}
+.nearBanner .nb-go{flex:0 0 auto;background:var(--amber);color:#241a05;font-weight:800;
+  font-size:12.5px;padding:11px 14px;border-radius:11px;width:auto;white-space:nowrap}
+.nearBanner .nb-close{flex:0 0 auto;width:30px;height:30px;border-radius:50%;
+  background:rgba(255,255,255,.15);color:#fff;font-size:13px}
 
 /* ============ CARD DE BAIXO ============ */
 #sheet{position:absolute;left:0;right:0;bottom:0;z-index:700;background:var(--paper);
@@ -1116,11 +1137,10 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
     <div id="fuelEst" class="pkStats" style="margin:10px 0 0">Preenche pra ver o custo estimado da rota</div>
   </div>
   <div class="saveline" id="bSave">✓ A rota fica salva. Se fechar o app, você volta de onde parou.</div>
-  <button class="btn plain" id="btnRefineRoute" style="margin-top:10px">🔄 Refinar rota com dados de rua</button>
   <div id="straightLineWarn" class="warnline hide">
     ⚠ Sem sinal suficiente pra calcular por rua — essa ordem foi feita em linha reta e pode ter trajetos estranhos.
-    <button class="btn plain" id="btnRetryRoad" style="margin-top:10px">🔄 Tentar de novo com dados de rua</button>
   </div>
+  <button class="btn plain" id="btnRefineRoute" style="margin-top:10px">🔄 Refinar rota com dados de rua</button>
   <div class="spacer"></div>
   <button class="btn big green" id="btnToBau">CARREGAR O BAÚ ▸</button>
   <button class="btn link" id="btnSkipBau">pular e iniciar rota direto</button>
@@ -1168,6 +1188,12 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
       <button class="tabBtn" id="btnPkgs">ROTA</button>
       <button class="tabBtn" id="btnGoBau">CARREGAR BAÚ</button>
     </div>
+  </div>
+
+  <div id="nearBanner" class="nearBanner hide">
+    <div class="nb-txt">📍 Você está perto da <b id="nbSeq">—</b><span id="nbAddr"></span>, fora da ordem</div>
+    <button id="nbGo" class="nb-go">fazer<br>agora</button>
+    <button id="nbClose" aria-label="fechar aviso" class="nb-close">✕</button>
   </div>
 
   <button id="recenter" class="on" aria-label="seguir"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="8.5"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3"/></svg></button>
@@ -1554,7 +1580,7 @@ async function fetchLeg(a,b){
 
 /* ===================== CONSTRUIR ===================== */
 async function build(stops){
-  STOPS=stops;DONE=new Set();SCANNED=new Set();KM_DRIVEN=0;TRACK=[];ROUTE_START=Date.now();ROUTE_DONE_SPOKEN=false;BAUPLAN=null;DELIVERY={};if(!STOPS.length)return toast('Nenhuma parada válida');
+  STOPS=stops;DONE=new Set();SCANNED=new Set();KM_DRIVEN=0;TRACK=[];ROUTE_START=Date.now();ROUTE_DONE_SPOKEN=false;BAUPLAN=null;DELIVERY={};NEAR_SUGGESTED=new Set();if(!STOPS.length)return toast('Nenhuma parada válida');
   if(MAP&&ROUTE_LINE){MAP.removeLayer(ROUTE_LINE);ROUTE_LINE=null}ROUTE_OVERVIEW_ON=false;
   TAIL=calcTail(STOPS.flatMap(s=>s.pkgs));
   load(true,'localizando você…');ORIGIN=await getOrigin();
@@ -1642,6 +1668,9 @@ function startApp(){
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
       {maxZoom:20,attribution:'© OpenStreetMap © CARTO'}).addTo(MAP);
     MAP.on('dragstart',()=>setFollow(false));
+    // reagrupa os pinos quando o zoom/posição muda — o agrupamento é por
+    // distância NA TELA, então precisa recalcular sempre que isso muda
+    MAP.on('zoomend moveend',()=>drawPins());
     PINS=L.layerGroup().addTo(MAP);
   }
   const nx=nextStop();
@@ -1656,22 +1685,62 @@ function nextStop(){for(let i=0;i<ORDER.length;i++)if(!DONE.has(ORDER[i]))return
 function setFollow(v){FOLLOW=v;$('#recenter').classList.toggle('on',v);
   if(v&&MEPOS)centerOn([MEPOS.lat,MEPOS.lng],Math.max(MAP.getZoom(),16))}
 
+const NEAR_KM=.13; // ~130m: "bem perto", mais que o raio de chegada (70m) da próxima parada
 function drawPins(){
   if(!PINS)return;PINS.clearLayers();
   const nx=nextStop();
+  const clusterable=[];
   ORDER.forEach((si,pos)=>{
-    const s=STOPS[si],done=DONE.has(si),isNext=nx&&nx.si===si;
-    const failed=done&&DELIVERY[si]&&DELIVERY[si].status==='nao_entregue';
-    const soon=!done&&!isNext&&nx&&pos<nx.i+5;
-    const cls=failed?'failed':(done?'done':(isNext?'next':(soon?'soon':'')));
-    const sz=done?22:(isNext?40:30);
-    const info=`Parada ${SEQ[si]} · pacote ${s.pkgs.map(p=>p.slice(-TAIL)).join(', ')}`;
-    const m=L.marker([s.lat,s.lng],{zIndexOffset:isNext?1000:(done?0:200),
-      icon:L.divIcon({className:'',html:`<div class="pin ${cls}">${SEQ[si]}</div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]})});
-    m.on('click',()=>{toast(info,3200)});
-    m.addTo(PINS)});
+    const done=DONE.has(si),isNext=nx&&nx.si===si;
+    if(done||isNext)drawSinglePin(si,pos,nx);else clusterable.push(si);
+  });
+  // agrupa pinos pendentes que ficariam sobrepostos NA TELA no zoom atual —
+  // sem isso, em regiões com muitas entregas próximas (ex: centro de
+  // cidade) os números somem uns atrás dos outros e viram ilegíveis
+  clusterPending(clusterable).forEach(group=>{
+    if(group.length===1)drawSinglePin(group[0],ORDER.indexOf(group[0]),nx);
+    else drawClusterPin(group);
+  });
   drawMe();
   if(ROUTE_OVERVIEW_ON)drawRouteOverview();
+}
+function clusterPending(sis){
+  if(!MAP||sis.length<2)return sis.map(si=>[si]);
+  const THRESH=30; // px de distância na tela pra considerar "sobrepostos"
+  const pts=sis.map(si=>({si,pt:MAP.latLngToContainerPoint([STOPS[si].lat,STOPS[si].lng])}));
+  const used=new Set(),groups=[];
+  for(const p of pts){
+    if(used.has(p.si))continue;
+    const g=[p.si];used.add(p.si);
+    for(const q of pts){
+      if(used.has(q.si))continue;
+      if(Math.hypot(p.pt.x-q.pt.x,p.pt.y-q.pt.y)<THRESH){g.push(q.si);used.add(q.si)}
+    }
+    groups.push(g);
+  }
+  return groups;
+}
+function drawSinglePin(si,pos,nx){
+  const s=STOPS[si],done=DONE.has(si),isNext=nx&&nx.si===si;
+  const failed=done&&DELIVERY[si]&&DELIVERY[si].status==='nao_entregue';
+  const soon=!done&&!isNext&&nx&&pos<nx.i+5;
+  const near=!done&&!isNext&&MEPOS&&hav(MEPOS,s)<=NEAR_KM;
+  const cls=failed?'failed':(done?'done':(isNext?'next':(near?'near':(soon?'soon':''))));
+  const sz=done?22:(isNext?40:30);
+  const info=`Parada ${SEQ[si]} · pacote ${s.pkgs.map(p=>p.slice(-TAIL)).join(', ')}`;
+  const m=L.marker([s.lat,s.lng],{zIndexOffset:isNext?1000:(near?300:(done?0:200)),
+    icon:L.divIcon({className:'',html:`<div class="pin ${cls}">${SEQ[si]}</div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]})});
+  m.on('click',()=>{toast(info,3200)});
+  m.addTo(PINS);
+}
+function drawClusterPin(sis){
+  const pts=sis.map(si=>[STOPS[si].lat,STOPS[si].lng]);
+  const lat=pts.reduce((s,p)=>s+p[0],0)/pts.length,lng=pts.reduce((s,p)=>s+p[1],0)/pts.length;
+  const m=L.marker([lat,lng],{zIndexOffset:150,
+    icon:L.divIcon({className:'',html:`<div class="pin cluster"><b>${sis.length}</b><i>paradas</i></div>`,iconSize:[44,30],iconAnchor:[22,15]})});
+  m.on('click',()=>{setFollow(false);MAP.fitBounds(pts,{padding:[60,60],maxZoom:19});
+    toast(sis.length+' paradas próximas — deu zoom pra separar',2400)});
+  m.addTo(PINS);
 }
 /* linha fina "esquemática" ligando as paradas que faltam, na ordem de
    visita — só pra dar uma visão do formato do dia inteiro. Não é
@@ -1762,6 +1831,7 @@ function syncStatsHeader(){
 function refresh(){
   const tot=ORDER.length,fin=DONE.size;
   syncStatsHeader();
+  checkNearby();
   const nx=nextStop();
 
   if(!nx){
@@ -2146,6 +2216,33 @@ function promoteStop(si){
   speak(`Parada ${SEQ[si]} agora é a próxima.`);
   renderPkFull(normCode($('#pkQ').value));
 }
+/* avisa quando o motorista está fisicamente perto de uma parada que NÃO
+   é a próxima da ordem — ex: passou perto da 20 mas a rota ainda tá na 6.
+   Só sugere UMA vez por parada (NEAR_SUGGESTED), pra não ficar repetindo
+   o aviso toda vez que o GPS atualiza enquanto ele continua por perto. */
+let NEAR_SUGGESTED=new Set(),NEAR_TO=null;
+function checkNearby(){
+  if(!MEPOS)return;
+  const nx=nextStop();if(!nx)return;
+  for(const si of ORDER){
+    if(DONE.has(si)||si===nx.si||NEAR_SUGGESTED.has(si))continue;
+    if(hav(MEPOS,STOPS[si])<=NEAR_KM){NEAR_SUGGESTED.add(si);showNearBanner(si);return}
+  }
+}
+function showNearBanner(si){
+  const s=STOPS[si];
+  $('#nbSeq').textContent='parada '+SEQ[si];
+  $('#nbAddr').textContent=' — '+s.addr;
+  const top=$('#top');
+  $('#nearBanner').style.top=(top.offsetTop+top.offsetHeight+10)+'px';
+  $('#nearBanner').classList.remove('hide');
+  $('#nbGo').onclick=()=>{promoteStop(si);hideNearBanner()};
+  toast('Você está perto de uma parada fora da ordem',2600);
+  speak(`Você está perto da parada ${SEQ[si]}, fora da ordem. Toque em fazer agora se quiser adiantar ela.`);
+  clearTimeout(NEAR_TO);NEAR_TO=setTimeout(hideNearBanner,9000);
+}
+function hideNearBanner(){$('#nearBanner').classList.add('hide');clearTimeout(NEAR_TO)}
+$('#nbClose').onclick=hideNearBanner;
 function updatePkStats(){
   let t=`${DONE.size} de ${ORDER.length} paradas entregues · ${bauTotal()} pacotes no total`;
   if(FUEL.price>0&&FUEL.kmPerL>0)
@@ -2294,7 +2391,6 @@ $('#btnBauDone').onclick=()=>{if(BAU_FROM_APP)closeBauOverlay();else startApp()}
 $('#btnBauBack').onclick=()=>{if(BAU_FROM_APP)closeBauOverlay();else backToBrief()};
 $('#btnGoBau').onclick=showBauFromApp;
 $('#btnBriefBack').onclick=backToImport;
-$('#btnRetryRoad').onclick=retryRoadOptimize;
 $('#btnRefineRoute').onclick=retryRoadOptimize;
 $('#btnHelp').onclick=()=>{$('#scImport').classList.add('hide');$('#scHelp').classList.remove('hide')};
 $('#btnHelpBack').onclick=()=>{$('#scHelp').classList.add('hide');$('#scImport').classList.remove('hide')};
@@ -2337,7 +2433,7 @@ window.addEventListener('resize',layoutSheet);
    (InstallApk) baixa a .apk e abre o instalador do Android — que sempre pede
    confirmação, não tem como pular essa tela. Fora do app nativo (navegador
    comum) essa checagem nem roda. */
-const APP_VERSION_CODE=23; // mantenha igual ao versionCode em android/app/build.gradle
+const APP_VERSION_CODE=24; // mantenha igual ao versionCode em android/app/build.gradle
 (function(){
   if(!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()))return;
   const VERSION_URL='https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/version.json';
