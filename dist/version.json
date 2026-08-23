@@ -1,6 +1,6 @@
 {
-  "versionCode": 18,
-  "versionName": "0.10.3",
+  "versionCode": 19,
+  "versionName": "0.11.0",
   "apkUrl": "https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/rotafacil.apk",
-  "notes": "Corrige o login com Google de novo: seu celular acusou que não suporta a tecnologia mais nova de login (Credential Manager), então troquei pro método mais antigo e compatível, que é o que a maioria dos apps usa. Testa de novo o \"Entrar com Google\"."
+  "notes": "Tirei a parte de foto do comprovante de entrega — agora ao tocar em ENTREGUEI já vai direto pra ENTREGUE/NÃO ENTREGUE, sem passar pela câmera. Também adicionei um botão 'Refinar rota com dados de rua' na tela de resumo, sempre disponível (antes só aparecia quando o app detectava uma falha) — funciona parecido com a opção de otimizar rota de outros apps de entrega."
 }

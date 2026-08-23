@@ -963,9 +963,7 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
 .pkrow.f .n{background:#FEECEC;color:var(--red)}
 .pkrow.f .a{color:var(--mut);text-decoration:line-through}
 
-/* comprovante de entrega (foto + local + hora) */
-#dcCam{position:relative;border-radius:20px;overflow:hidden;background:#000;aspect-ratio:3/4;margin:14px 0}
-#dcCam video,#dcCam img{width:100%;height:100%;object-fit:cover;display:block}
+/* comprovante de entrega (local + hora) */
 #dcMeta{font-size:12.5px;color:var(--mut);font-weight:700;text-align:center;margin:0 0 10px}
 .dcRow2{display:flex;gap:10px;margin-top:12px}
 .dcRow2 .btn{margin-top:0}
@@ -982,7 +980,6 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
 .rptrow .info{flex:1;min-width:0}
 .rptrow .a{font-size:14.5px;font-weight:700;line-height:1.3}
 .rptrow .loc{font-size:12.5px;color:var(--mut);font-weight:600;margin-top:3px}
-.rptPhoto{flex:0 0 auto;background:#EEF2F7;border-radius:11px;padding:8px 11px;font-size:16px}
 
 /* auto-update */
 #updBanner{position:fixed;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top,0px));z-index:4000;
@@ -1109,6 +1106,7 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
     <div id="fuelEst" class="pkStats" style="margin:10px 0 0">Preenche pra ver o custo estimado da rota</div>
   </div>
   <div class="saveline" id="bSave">✓ A rota fica salva. Se fechar o app, você volta de onde parou.</div>
+  <button class="btn plain" id="btnRefineRoute" style="margin-top:10px">🔄 Refinar rota com dados de rua</button>
   <div id="straightLineWarn" class="warnline hide">
     ⚠ Sem sinal suficiente pra calcular por rua — essa ordem foi feita em linha reta e pode ter trajetos estranhos.
     <button class="btn plain" id="btnRetryRoad" style="margin-top:10px">🔄 Tentar de novo com dados de rua</button>
@@ -1218,16 +1216,10 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
     <button class="iconbtn" id="btnDcClose" aria-label="cancelar"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     <div class="pkTopTitle">Comprovar entrega</div>
   </div>
-  <div id="dcCam"><video id="dcVideo" playsinline muted autoplay></video><img id="dcPhoto" class="hide"></div>
   <div id="dcMeta"></div>
-  <button class="btn big cta" id="btnDcShoot">📷 TIRAR FOTO</button>
-  <button class="btn link" id="btnDcSkipPhoto">entregar sem tirar foto</button>
-  <div id="dcAfter" class="hide">
-    <button class="btn plain" id="btnDcRetake">tirar de novo</button>
-    <div class="dcRow2">
-      <button class="btn big green" id="btnDcOk">✓ ENTREGUE</button>
-      <button class="btn big red" id="btnDcFail">✗ NÃO ENTREGUE</button>
-    </div>
+  <div class="dcRow2">
+    <button class="btn big green" id="btnDcOk">✓ ENTREGUE</button>
+    <button class="btn big red" id="btnDcFail">✗ NÃO ENTREGUE</button>
   </div>
   <div id="dcReasons" class="hide">
     <div class="mtitle">Motivo</div>
@@ -1288,9 +1280,8 @@ let ACTIVE_SCAN_STOP=null; // função que fecha a câmera do leitor, se estiver
 let ROUTE_DONE_SPOKEN=false;
 let USED_STRAIGHT_LINE=false; // true = a ordem foi calculada em linha reta (sem internet), não por rua
 /* comprovante de cada parada concluída: status, motivo (se não entregue),
-   local e hora. Pequeno, então fica junto do resto da rota salva; a foto
-   em si é grande demais pro localStorage e vive no IndexedDB (dcDB). */
-let DELIVERY={}; // si -> {status:'entregue'|'nao_entregue', reason, lat, lng, ts, hasPhoto}
+   local e hora. Fica junto do resto da rota salva. */
+let DELIVERY={}; // si -> {status:'entregue'|'nao_entregue', reason, lat, lng, ts}
 /* número fixo de cada parada (si -> "parada N"), atribuído uma única vez
    ao montar a rota. NÃO é a posição no array ORDER: essa posição muda
    toda vez que uma parada é pulada (vai pro fim), e se o número mostrado
@@ -1452,25 +1443,7 @@ function fmtD(km){return km<1?Math.round(km*1000)+' m':km.toFixed(1)+' km'}
 const LS='rotafacil.v5';
 function save(){try{localStorage.setItem(LS,JSON.stringify({ts:Date.now(),STOPS,ORDER,ORIGIN,TAIL,KM,KM_RAW,DONE:[...DONE],SCANNED:[...SCANNED],KM_DRIVEN,SEQ,DELIVERY,TRACK,ROUTE_START}))}catch(e){}}
 function restore(){try{return JSON.parse(localStorage.getItem(LS)||'null')}catch(e){return null}}
-function wipe(){try{localStorage.removeItem(LS)}catch(e){}DELIVERY={};dcClearAllPhotos()}
-
-/* fotos dos comprovantes de entrega — grandes demais pro localStorage,
-   então ficam num IndexedDB à parte, uma por parada (si), sobrescrita
-   se o motorista tirar de novo. */
-function dcDB(){return new Promise((res,rej)=>{
-  const rq=indexedDB.open('rotafacil-fotos',1);
-  rq.onupgradeneeded=()=>rq.result.createObjectStore('fotos');
-  rq.onsuccess=()=>res(rq.result);rq.onerror=()=>rej(rq.error)})}
-async function dcSavePhoto(si,blob){try{const db=await dcDB();
-  await new Promise((res,rej)=>{const tx=db.transaction('fotos','readwrite');
-    tx.objectStore('fotos').put(blob,si);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}catch(e){}}
-async function dcLoadPhoto(si){try{const db=await dcDB();
-  return await new Promise(res=>{const tx=db.transaction('fotos','readonly');
-    const rq=tx.objectStore('fotos').get(si);rq.onsuccess=()=>res(rq.result||null);rq.onerror=()=>res(null)})}catch(e){return null}}
-async function dcDeletePhoto(si){try{const db=await dcDB();
-  db.transaction('fotos','readwrite').objectStore('fotos').delete(si)}catch(e){}}
-async function dcClearAllPhotos(){try{const db=await dcDB();
-  db.transaction('fotos','readwrite').objectStore('fotos').clear()}catch(e){}}
+function wipe(){try{localStorage.removeItem(LS)}catch(e){}DELIVERY={}}
 
 /* ===================== PLANILHA ===================== */
 const F={lat:['latitude','lat'],lng:['longitude','long','lng','lon'],
@@ -1555,7 +1528,7 @@ async function fetchLeg(a,b){
 
 /* ===================== CONSTRUIR ===================== */
 async function build(stops){
-  STOPS=stops;DONE=new Set();SCANNED=new Set();KM_DRIVEN=0;TRACK=[];ROUTE_START=Date.now();ROUTE_DONE_SPOKEN=false;BAUPLAN=null;DELIVERY={};dcClearAllPhotos();if(!STOPS.length)return toast('Nenhuma parada válida');
+  STOPS=stops;DONE=new Set();SCANNED=new Set();KM_DRIVEN=0;TRACK=[];ROUTE_START=Date.now();ROUTE_DONE_SPOKEN=false;BAUPLAN=null;DELIVERY={};if(!STOPS.length)return toast('Nenhuma parada válida');
   if(MAP&&ROUTE_LINE){MAP.removeLayer(ROUTE_LINE);ROUTE_LINE=null}ROUTE_OVERVIEW_ON=false;
   TAIL=calcTail(STOPS.flatMap(s=>s.pkgs));
   load(true,'localizando você…');ORIGIN=await getOrigin();
@@ -1795,69 +1768,32 @@ function skip(i){
   speak('Parada pulada. Ela volta no fim da rota.');
 }
 
-/* ===================== COMPROVANTE DE ENTREGA ===================== */
-let DC_SI=null,DC_STREAM=null,DC_BLOB=null,DC_LOC=null;
-async function openDeliveryCapture(si){
-  DC_SI=si;DC_BLOB=null;DC_LOC=MEPOS?{lat:MEPOS.lat,lng:MEPOS.lng}:null;
-  $('#dcAfter').classList.add('hide');$('#dcReasons').classList.add('hide');
-  $('#dcPhoto').classList.add('hide');$('#dcVideo').classList.remove('hide');
+/* ===================== COMPROVANTE DE ENTREGA =====================
+   Só registra entregue/não entregue com local e hora — sem foto (foi
+   removida a pedido: a SPX/Shopee não usa essa prova mesmo, e virou
+   fricção sem necessidade pro motorista). */
+let DC_SI=null,DC_LOC=null;
+function openDeliveryCapture(si){
+  DC_SI=si;DC_LOC=MEPOS?{lat:MEPOS.lat,lng:MEPOS.lng}:null;
+  $('#dcReasons').classList.add('hide');
   $('#dcReasonOther').classList.add('hide');$('#dcReasonOther').value='';
-  $('#btnDcShoot').classList.remove('hide');$('#btnDcSkipPhoto').classList.remove('hide');
   document.querySelectorAll('.reasonChip').forEach(c=>c.classList.remove('sel'));
   $('#pkScreen').classList.add('hide');$('#app').classList.add('hide');
   $('#dcScreen').classList.remove('hide');
   updateDcMeta();
-  try{
-    DC_STREAM=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
-    $('#dcVideo').srcObject=DC_STREAM;await $('#dcVideo').play();
-  }catch(e){
-    $('#btnDcShoot').classList.add('hide'); // sem câmera — ainda dá pra entregar sem foto
-  }
   if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{
     DC_LOC={lat:p.coords.latitude,lng:p.coords.longitude};updateDcMeta()},()=>{},{timeout:5000,maximumAge:15000});
 }
 function updateDcMeta(){
   $('#dcMeta').textContent=(DC_LOC?'📍 local capturado · ':'⚠ sem GPS no momento · ')+new Date().toLocaleString('pt-BR');
 }
-function dcStopCam(){if(DC_STREAM){DC_STREAM.getTracks().forEach(t=>t.stop());DC_STREAM=null}}
 function closeDeliveryCapture(){
-  dcStopCam();$('#dcScreen').classList.add('hide');$('#app').classList.remove('hide');
-  DC_SI=null;DC_BLOB=null;
-}
-async function dcShoot(){
-  const v=$('#dcVideo');
-  const cv=document.createElement('canvas');
-  const scale=v.videoWidth?Math.min(1,640/v.videoWidth):1;
-  cv.width=Math.round((v.videoWidth||480)*scale);cv.height=Math.round((v.videoHeight||640)*scale);
-  cv.getContext('2d').drawImage(v,0,0,cv.width,cv.height);
-  DC_BLOB=await new Promise(res=>cv.toBlob(res,'image/jpeg',.62));
-  $('#dcPhoto').src=URL.createObjectURL(DC_BLOB);
-  $('#dcVideo').classList.add('hide');$('#dcPhoto').classList.remove('hide');
-  dcStopCam();
-  $('#btnDcShoot').classList.add('hide');$('#btnDcSkipPhoto').classList.add('hide');
-  $('#btnDcRetake').textContent='tirar de novo';
-  $('#dcAfter').classList.remove('hide');
-  updateDcMeta();
-}
-function dcSkipPhoto(){
-  DC_BLOB=null;dcStopCam();
-  $('#dcVideo').classList.add('hide');$('#dcPhoto').classList.add('hide');
-  $('#btnDcShoot').classList.add('hide');$('#btnDcSkipPhoto').classList.add('hide');
-  $('#btnDcRetake').textContent='tirar foto afinal';
-  $('#dcAfter').classList.remove('hide');
-  updateDcMeta();
-}
-async function dcRetake(){
-  $('#dcAfter').classList.add('hide');$('#dcReasons').classList.add('hide');
-  $('#dcPhoto').classList.add('hide');$('#dcVideo').classList.remove('hide');
-  $('#btnDcShoot').classList.remove('hide');$('#btnDcSkipPhoto').classList.remove('hide');
-  try{DC_STREAM=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
-    $('#dcVideo').srcObject=DC_STREAM;await $('#dcVideo').play()}catch(e){}
+  $('#dcScreen').classList.add('hide');$('#app').classList.remove('hide');
+  DC_SI=null;
 }
 async function dcConfirm(status,reason){
   const si=DC_SI;if(si==null)return;
-  DELIVERY[si]={status,reason:reason||null,lat:DC_LOC?DC_LOC.lat:null,lng:DC_LOC?DC_LOC.lng:null,ts:Date.now(),hasPhoto:!!DC_BLOB};
-  if(DC_BLOB)await dcSavePhoto(si,DC_BLOB);else await dcDeletePhoto(si);
+  DELIVERY[si]={status,reason:reason||null,lat:DC_LOC?DC_LOC.lat:null,lng:DC_LOC?DC_LOC.lng:null,ts:Date.now()};
   closeDeliveryCapture();
   DONE.add(si);ARRIVED=null;LASTROUTE=null;save();
   drawPins();refresh();maybeLeg();
@@ -1873,9 +1809,6 @@ async function dcConfirm(status,reason){
   if(!left)setTimeout(showDoneScreen,1400); // dá tempo do toast/voz da última parada antes de trocar de tela
 }
 $('#btnDcClose').onclick=closeDeliveryCapture;
-$('#btnDcShoot').onclick=dcShoot;
-$('#btnDcRetake').onclick=dcRetake;
-$('#btnDcSkipPhoto').onclick=dcSkipPhoto;
 $('#btnDcOk').onclick=()=>dcConfirm('entregue',null);
 $('#btnDcFail').onclick=()=>{$('#dcReasons').classList.remove('hide')};
 document.querySelectorAll('.reasonChip').forEach(c=>c.onclick=()=>{
@@ -1966,8 +1899,7 @@ function renderReport(){
     const hh=new Date(rec.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
     return `<div class="rptrow ${ok?'ok':'fail'}"><div class="n">${ok?'✓':'✗'}</div>
       <div class="info"><div class="a">${esc(s.addr)}</div>
-      <div class="loc">${SEQ[si]}ª parada · ${hh}${rec.reason?' · '+esc(rec.reason):''}</div></div>
-      ${rec.hasPhoto?`<button class="rptPhoto" data-si="${si}">📷</button>`:''}</div>`;
+      <div class="loc">${SEQ[si]}ª parada · ${hh}${rec.reason?' · '+esc(rec.reason):''}</div></div></div>`;
   }).filter(Boolean).join('')||'<div class="nohit">Nenhuma entrega registrada ainda</div>';
 }
 let RPT_FROM='pk'; // pra onde voltar ao sair do relatório: 'pk' (conferir pacotes) ou 'done' (menu pós-entrega)
@@ -1986,16 +1918,6 @@ async function shareReport(){
 }
 $('#btnRptShare').onclick=shareReport;
 $('#btnRptSaveFile').onclick=saveRouteFile;
-$('#rptList').addEventListener('click',async e=>{
-  const b=e.target.closest('.rptPhoto');if(!b)return;
-  const blob=await dcLoadPhoto(+b.dataset.si);
-  if(!blob)return toast('Foto não encontrada',2200);
-  const img=document.createElement('img');
-  img.src=URL.createObjectURL(blob);
-  img.style.cssText='position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:3000';
-  img.onclick=()=>img.remove();
-  document.body.appendChild(img);
-});
 
 /* ===================== MENU PÓS-ENTREGA (rota concluída) =====================
    Antes, tocar em ENCERRAR apagava tudo na hora e voltava pro início sem chance
@@ -2179,7 +2101,7 @@ $('#pkFullList').addEventListener('click',e=>{
   if(DONE.has(si)){
     // desfaz entrega — pra corrigir um ENTREGUEI tocado sem querer.
     // fica na própria aba (não fecha, não navega) pra poder desfazer mais de uma se precisar.
-    DONE.delete(si);delete DELIVERY[si];dcDeletePhoto(si);ARRIVED=null;LASTROUTE=null;save();
+    DONE.delete(si);delete DELIVERY[si];ARRIVED=null;LASTROUTE=null;save();
     drawPins();refresh();maybeLeg();startWatch();
     toast(`Entrega desfeita — parada ${SEQ[si]} voltou pra rota`,3200);
     speak(`Entrega desfeita. Parada ${SEQ[si]}.`);
@@ -2296,6 +2218,7 @@ $('#btnBauBack').onclick=()=>{if(BAU_FROM_APP)closeBauOverlay();else backToBrief
 $('#btnGoBau').onclick=showBauFromApp;
 $('#btnBriefBack').onclick=backToImport;
 $('#btnRetryRoad').onclick=retryRoadOptimize;
+$('#btnRefineRoute').onclick=retryRoadOptimize;
 $('#btnHelp').onclick=()=>{$('#scImport').classList.add('hide');$('#scHelp').classList.remove('hide')};
 $('#btnHelpBack').onclick=()=>{$('#scHelp').classList.add('hide');$('#scImport').classList.remove('hide')};
 
@@ -2337,7 +2260,7 @@ window.addEventListener('resize',layoutSheet);
    (InstallApk) baixa a .apk e abre o instalador do Android — que sempre pede
    confirmação, não tem como pular essa tela. Fora do app nativo (navegador
    comum) essa checagem nem roda. */
-const APP_VERSION_CODE=18; // mantenha igual ao versionCode em android/app/build.gradle
+const APP_VERSION_CODE=19; // mantenha igual ao versionCode em android/app/build.gradle
 (function(){
   if(!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()))return;
   const VERSION_URL='https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/version.json';

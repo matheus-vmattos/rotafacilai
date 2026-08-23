@@ -1,8 +1,8 @@
 /* ===================== TESTE DE FUMAÇA (smoke test) =====================
    Simula um motorista usando o app do começo ao fim: importar rota,
-   carregar o baú, escanear pacote certo/errado, entregar (com e sem
-   foto, entregue e não entregue), pular, adiantar parada, recalcular,
-   ver relatório, salvar arquivo, encerrar — e testa o botão físico de
+   carregar o baú, escanear pacote certo/errado, entregar (entregue e
+   não entregue com motivo), pular, adiantar parada, recalcular, ver
+   relatório, salvar arquivo, encerrar — e testa o botão físico de
    voltar do Android em cada tela.
 
    Como rodar:
@@ -74,6 +74,7 @@ async function run() {
     await page.waitForSelector('#scBrief:not(.hide)');
     const briefText = await page.evaluate(() => document.getElementById('bSave').textContent);
     assert.ok(/km/.test(briefText), 'resumo da rota deveria comparar km da planilha x rota otimizada');
+    assert.ok(await page.isVisible('#btnRefineRoute'), 'botão de refinar a rota com dados de rua deveria estar sempre visível, não só quando cai pra linha reta');
 
     step = 'carregar o baú: escanear pacote válido';
     await page.click('#btnToBau');
@@ -105,38 +106,20 @@ async function run() {
     assert.ok(/pilha/.test(quickSearchHtml), 'busca rápida deveria mostrar onde o pacote está guardado no baú');
     await page.evaluate(() => closeSheet());
 
-    step = 'entregar com foto';
+    step = 'entregar (entregue)';
     await page.click('#btnDone');
     await page.waitForSelector('#dcScreen:not(.hide)');
-    await page.waitForTimeout(600);
-    await page.click('#btnDcShoot');
-    await page.waitForSelector('#dcAfter:not(.hide)');
+    await page.waitForTimeout(300);
     const firstSi = await page.evaluate(() => ORDER[0]);
     await page.click('#btnDcOk');
     await page.waitForFunction(() => document.getElementById('dcScreen').classList.contains('hide'));
     const rec1 = await page.evaluate((si) => DELIVERY[si], firstSi);
     assert.strictEqual(rec1.status, 'entregue');
-    assert.strictEqual(rec1.hasPhoto, true);
-
-    step = 'entregar sem foto (opcional)';
-    await page.click('#btnDone');
-    await page.waitForSelector('#dcScreen:not(.hide)');
-    await page.waitForTimeout(600);
-    assert.ok(await page.isVisible('#btnDcSkipPhoto'), 'botão de pular a foto deveria estar visível desde o início');
-    await page.click('#btnDcSkipPhoto');
-    await page.waitForSelector('#dcAfter:not(.hide)');
-    const secondSi = await page.evaluate(() => nextStop().si);
-    await page.click('#btnDcOk');
-    await page.waitForFunction(() => document.getElementById('dcScreen').classList.contains('hide'));
-    const rec2 = await page.evaluate((si) => DELIVERY[si], secondSi);
-    assert.strictEqual(rec2.hasPhoto, false);
 
     step = 'marcar como não entregue com motivo';
     await page.click('#btnDone');
     await page.waitForSelector('#dcScreen:not(.hide)');
-    await page.waitForTimeout(600);
-    await page.click('#btnDcSkipPhoto');
-    await page.waitForSelector('#dcAfter:not(.hide)');
+    await page.waitForTimeout(300);
     const thirdSi = await page.evaluate(() => nextStop().si);
     await page.click('#btnDcFail');
     await page.waitForSelector('#dcReasons:not(.hide)');
@@ -191,7 +174,7 @@ async function run() {
     const content = fs.readFileSync(filePath, 'utf8');
     assert.ok(content.includes('Trajeto percorrido') || content.includes('ROTA FÁCIL'), 'arquivo salvo deveria ter o conteúdo esperado');
 
-    step = 'foto no meio da captura + botão voltar não trava';
+    step = 'botão voltar fecha a tela de comprovante de entrega';
     await page.click('#btnRptBack');
     await page.waitForSelector('#pkScreen:not(.hide)');
     await page.click('#btnPkgsBack');
