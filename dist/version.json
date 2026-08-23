@@ -1,6 +1,6 @@
 {
-  "versionCode": 20,
-  "versionName": "0.12.0",
+  "versionCode": 21,
+  "versionName": "0.13.0",
   "apkUrl": "https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/rotafacil.apk",
-  "notes": "Ao pular uma parada, o app agora recalcula sozinho a ordem das paradas restantes com dados reais de rua a partir de onde você está (avisa 'recalculando a rota…' enquanto faz isso). A parada pulada continua sendo a última do dia."
+  "notes": "Agora dá pra tocar em qualquer parada no mapa (que ainda não foi entregue) e escolher 'Fazer esta agora' pra ir direto pra ela, sem precisar pular as que estão no meio do caminho."
 }

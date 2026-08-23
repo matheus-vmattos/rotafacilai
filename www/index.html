@@ -839,6 +839,14 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
 .pin.soon{background:var(--ink2)}
 .leaflet-div-icon{background:none;border:0}
 
+/* --- popup ao tocar num pino: info da parada + atalho pra adiantar --- */
+.pinPopup{font-size:13px;line-height:1.4;text-align:center}
+.pinPopup b{display:block;font-size:13.5px;margin-bottom:8px}
+.pinPopupBtn{background:var(--blue);color:#fff;font-weight:800;font-size:12.5px;
+  border-radius:10px;padding:9px 14px;width:100%}
+.leaflet-popup-content{margin:11px 13px}
+.leaflet-popup-content-wrapper{border-radius:14px}
+
 /* ============ CARD DE BAIXO ============ */
 #sheet{position:absolute;left:0;right:0;bottom:0;z-index:700;background:var(--paper);
   border-radius:26px 26px 0 0;box-shadow:0 -8px 40px rgba(11,15,20,.22);
@@ -1639,10 +1647,17 @@ function drawPins(){
     const soon=!done&&!isNext&&nx&&pos<nx.i+5;
     const cls=failed?'failed':(done?'done':(isNext?'next':(soon?'soon':'')));
     const sz=done?22:(isNext?40:30);
-    L.marker([s.lat,s.lng],{zIndexOffset:isNext?1000:(done?0:200),
-      icon:L.divIcon({className:'',html:`<div class="pin ${cls}">${SEQ[si]}</div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]})})
-      .on('click',()=>{toast(`Parada ${SEQ[si]} · pacote ${s.pkgs.map(p=>p.slice(-TAIL)).join(', ')}`,3200)})
-      .addTo(PINS)});
+    const info=`Parada ${SEQ[si]} · pacote ${s.pkgs.map(p=>p.slice(-TAIL)).join(', ')}`;
+    const m=L.marker([s.lat,s.lng],{zIndexOffset:isNext?1000:(done?0:200),
+      icon:L.divIcon({className:'',html:`<div class="pin ${cls}">${SEQ[si]}</div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]})});
+    if(!done&&!isNext){
+      // toque num pino que ainda não é a próxima parada: mostra um atalho
+      // pra ir direto pra ela, sem precisar pular todas as do meio
+      m.bindPopup(`<div class="pinPopup"><b>${esc(info)}</b><button class="pinPopupBtn" data-promote="${si}">🔀 Fazer esta agora</button></div>`);
+    }else{
+      m.on('click',()=>{toast(info,3200)});
+    }
+    m.addTo(PINS)});
   drawMe();
   if(ROUTE_OVERVIEW_ON)drawRouteOverview();
 }
@@ -2096,6 +2111,11 @@ function promoteStop(si){
   speak(`Parada ${SEQ[si]} agora é a próxima.`);
   renderPkFull(normCode($('#pkQ').value));
 }
+document.addEventListener('click',e=>{
+  const b=e.target.closest('.pinPopupBtn');if(!b)return;
+  if(MAP)MAP.closePopup();
+  promoteStop(+b.dataset.promote);
+});
 function updatePkStats(){
   let t=`${DONE.size} de ${ORDER.length} paradas entregues · ${bauTotal()} pacotes no total`;
   if(FUEL.price>0&&FUEL.kmPerL>0)
@@ -2282,7 +2302,7 @@ window.addEventListener('resize',layoutSheet);
    (InstallApk) baixa a .apk e abre o instalador do Android — que sempre pede
    confirmação, não tem como pular essa tela. Fora do app nativo (navegador
    comum) essa checagem nem roda. */
-const APP_VERSION_CODE=20; // mantenha igual ao versionCode em android/app/build.gradle
+const APP_VERSION_CODE=21; // mantenha igual ao versionCode em android/app/build.gradle
 (function(){
   if(!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()))return;
   const VERSION_URL='https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/version.json';

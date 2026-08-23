@@ -166,7 +166,29 @@ async function run() {
     await page.waitForTimeout(300);
     assert.strictEqual(await page.evaluate(() => nextStop().si), promoteTarget);
 
+    step = 'tocar no pino do mapa adianta a parada';
+    await page.click('#btnPkgsBack'); // fecha o painel de pacotes e volta pro mapa
+    await page.waitForSelector('#app:not(.hide)');
+    const pinTarget = await page.evaluate(() => {
+      const nx = nextStop();
+      return ORDER.filter((si) => !DONE.has(si) && si !== nx.si)[2];
+    });
+    await page.evaluate((si) => {
+      // simula o toque no pino abrindo o popup dele (mesmo caminho do clique real no mapa)
+      const marker = [...PINS.getLayers()].find((l) => l.getPopup && l.getPopup() && l.getPopup().getContent().includes(`data-promote="${si}"`));
+      marker.openPopup();
+    }, pinTarget);
+    const popupBtnSel = `.pinPopupBtn[data-promote="${pinTarget}"]`;
+    await page.waitForSelector(popupBtnSel);
+    // clica via DOM (não por coordenada de tela) pra não depender da animação
+    // de "autopan" do Leaflet movendo o popup enquanto o clique acontece
+    await page.evaluate((sel) => document.querySelector(sel).click(), popupBtnSel);
+    await page.waitForTimeout(300);
+    assert.strictEqual(await page.evaluate(() => nextStop().si), pinTarget, 'tocar no botão do popup do pino deveria tornar essa parada a próxima');
+
     step = 'desfazer entrega apaga o registro';
+    await page.click('#btnPkgs');
+    await page.waitForSelector('#pkScreen:not(.hide)');
     const doneRow = await page.evaluate(() => [...document.querySelectorAll('.pkrow')].find((r) => r.classList.contains('d') || r.classList.contains('f')).dataset.si);
     await page.click(`.pkrow[data-si="${doneRow}"]`);
     await page.waitForTimeout(300);
