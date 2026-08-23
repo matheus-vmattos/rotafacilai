@@ -10,3 +10,10 @@ android/.idea/
 
 # dados reais de teste (endereços/clientes) — nunca comitar
 testdata/
+
+# credenciais do Firebase, uma vez que existirem — nunca comitar
+# (o .firebaserc.example, sem segredo nenhum, continua versionado)
+backend/.firebaserc
+backend/serviceAccountKey*.json
+android/app/google-services.json
+**/google-services.json

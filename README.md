@@ -4,16 +4,37 @@ App de roteirização de última milha (SPX/Mercado Livre) — importa a
 planilha `.xlsx` do galpão, agrupa pacotes, calcula a melhor sequência de
 paradas e guia a entrega.
 
-- `rota-facil.html` — protótipo original, single-file, roda em qualquer
-  navegador (arraste o arquivo pro Chrome ou abra local). É a referência
-  histórica e a fonte mais simples de testar mudanças de lógica/UI.
-- `www/index.html` — a mesma app, mais a camada de auto-update (só ativa
-  dentro do app instalado). É o que o build Android empacota.
-- `android/` — projeto Capacitor.
+## Estrutura do projeto
+
+- `www/index.html` — o app inteiro (HTML+CSS+JS num arquivo só, sem etapa
+  de build). Roda igual dentro do app instalado (Capacitor) e direto num
+  navegador comum — as partes que dependem do celular (câmera, GPS,
+  atualização automática) já verificam se estão disponíveis antes de usar.
+- `android/` — projeto Capacitor que empacota `www/` num `.apk`.
+- `backend/` — ainda não ativo; molde pronto pro Firebase (login + banco de
+  dados) assim que o projeto Firebase existir. Ver `backend/README.md`.
+- `tests/` — teste automatizado (`npm test`) que simula um motorista
+  usando o app do começo ao fim.
 - `dist/` — `.apk` publicado + `version.json` que o próprio app consulta
   pra saber se tem versão nova.
 - `android-signing/` — chave usada pra assinar os builds de teste (ver
   `android-signing/README.md`).
+
+## Testar mudanças
+
+```bash
+npm install                    # só na primeira vez (ou quando mudar package.json)
+npx playwright install chromium # idem — baixa o navegador que o teste usa
+npm test                       # roda o teste automatizado
+```
+
+Pra abrir o app e mexer manualmente, sirva a pasta `www/` com qualquer
+servidor local e abra `index.html` no navegador — por exemplo:
+
+```bash
+npx http-server www -p 8080
+# depois abra http://localhost:8080/index.html
+```
 
 ## Build do APK (Android)
 
@@ -46,12 +67,10 @@ cd android && ./gradlew assembleRelease
 
 ## Publicar uma atualização
 
-1. Edite `rota-facil.html` (protótipo/navegador) e replique as mudanças em
-   `www/index.html` (ou vice-versa — hoje são mantidos manualmente em
-   paralelo).
+1. Edite `www/index.html` e, se der, rode `npm test` antes de publicar.
 2. Suba o `versionCode`/`versionName` em `android/app/build.gradle` **e**
    a constante `APP_VERSION_CODE` no topo do bloco de auto-update em
-   `www/index.html`.
+   `www/index.html` (precisam ficar iguais).
 3. `npx cap copy android && cd android && ./gradlew assembleRelease`.
 4. Copie o apk pra `dist/rotafacil.apk` e atualize `dist/version.json`
    (`versionCode`, `versionName`, `notes`).
