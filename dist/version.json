@@ -1,6 +1,6 @@
 {
-  "versionCode": 14,
-  "versionName": "0.9.1",
+  "versionCode": 15,
+  "versionName": "0.10.0",
   "apkUrl": "https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/rotafacil.apk",
-  "notes": "Correção: o botão físico de voltar do Android agora fecha corretamente as telas de comprovante de entrega, relatório do dia e fim de rota (antes, nessas telas, ele não fazia nada e podia até fechar o app sem querer com a câmera aberta). A busca rápida de pacote (lupa no topo do mapa) agora também mostra onde guardar o pacote no baú, igual à aba Conferir pacotes."
+  "notes": "Login obrigatório pra usar o app: entre com sua conta Google ou crie uma conta com e-mail e senha. Tem um botão de 'sair da conta' na tela inicial. Essa é a primeira versão com login — teste bem antes de usar numa rota real, e me avisa se algo travar."
 }
