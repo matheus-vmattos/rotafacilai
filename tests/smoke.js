@@ -176,23 +176,20 @@ async function run() {
     assert.ok(/pilha/.test(quickSearchHtml), 'busca rápida deveria mostrar onde o pacote está guardado no baú');
     await page.evaluate(() => closeSheet());
 
-    step = 'entregar (entregue)';
-    await page.click('#btnDone');
-    await page.waitForSelector('#dcScreen:not(.hide)');
-    await page.waitForTimeout(300);
+    step = 'entregar (entregue) — confirma na hora, sem tela extra';
     const firstSi = await page.evaluate(() => ORDER[0]);
-    await page.click('#btnDcOk');
-    await page.waitForFunction(() => document.getElementById('dcScreen').classList.contains('hide'));
+    await page.click('#btnDone');
+    await page.waitForTimeout(300);
+    assert.ok(await page.evaluate(() => document.getElementById('dcScreen').classList.contains('hide')),
+      'ENTREGUEI deveria confirmar na hora, sem abrir tela extra de confirmação');
     const rec1 = await page.evaluate((si) => DELIVERY[si], firstSi);
     assert.strictEqual(rec1.status, 'entregue');
 
     step = 'marcar como não entregue com motivo';
-    await page.click('#btnDone');
+    const thirdSi = await page.evaluate(() => nextStop().si);
+    await page.click('#btnNaoEntregue');
     await page.waitForSelector('#dcScreen:not(.hide)');
     await page.waitForTimeout(300);
-    const thirdSi = await page.evaluate(() => nextStop().si);
-    await page.click('#btnDcFail');
-    await page.waitForSelector('#dcReasons:not(.hide)');
     await page.click('.reasonChip[data-r="Cliente ausente"]');
     await page.click('#btnDcConfirmFail');
     await page.waitForFunction(() => document.getElementById('dcScreen').classList.contains('hide'));
@@ -276,16 +273,16 @@ async function run() {
     const content = fs.readFileSync(filePath, 'utf8');
     assert.ok(content.includes('Trajeto percorrido') || content.includes('ROTA FÁCIL'), 'arquivo salvo deveria ter o conteúdo esperado');
 
-    step = 'botão voltar fecha a tela de comprovante de entrega';
+    step = 'botão voltar fecha a tela de "não entregue"';
     await page.click('#btnRptBack');
     await page.waitForSelector('#pkScreen:not(.hide)');
     await page.click('#btnPkgsBack');
     await page.waitForSelector('#app:not(.hide)');
-    await page.click('#btnDone');
+    await page.click('#btnNaoEntregue');
     await page.waitForSelector('#dcScreen:not(.hide)');
     await page.waitForTimeout(500);
     assert.ok(await page.evaluate(() => { handleBack(); return document.getElementById('dcScreen').classList.contains('hide'); }),
-      'botão de voltar deveria fechar a tela de comprovante de entrega');
+      'botão de voltar deveria fechar a tela de "não entregue"');
 
     step = 'nenhum erro de JS durante o teste todo';
     assert.deepStrictEqual(pageErrors, [], `erros de JS encontrados: ${pageErrors.join(' | ')}`);

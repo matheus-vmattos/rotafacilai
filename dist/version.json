@@ -1,6 +1,6 @@
 {
-  "versionCode": 26,
-  "versionName": "0.15.2",
+  "versionCode": 27,
+  "versionName": "0.16.0",
   "apkUrl": "https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/rotafacil.apk",
-  "notes": "Mais uma correção na atualização automática: o app só checava se tinha versão nova quando abria 'do zero' — se você só troca de tela e volta pro app sem fechar de verdade, ele nunca checava de novo. Agora checa também toda vez que o app volta pra frente, e a cada 30 minutos enquanto estiver aberto."
+  "notes": "Simplifica a entrega: tocar em ENTREGUEI agora já confirma na hora, sem pedir pra confirmar de novo numa segunda tela. Só quando o pacote NÃO for entregue é que abre uma tela (agora só com o motivo, sem escolha redundante) — tem um link discreto 'não consegui entregar' embaixo do botão verde pra isso."
 }
