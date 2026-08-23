@@ -905,10 +905,15 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
 .row2{display:flex;gap:9px;margin-top:9px}
 .row2 .btn{margin-top:0;font-size:14.5px;padding:14px}
 
-/* lista expandida */
+/* lista expandida — some o endereço/pacotes pra caber mais tela pra lista
+   de "próximas paradas" logo abaixo, sem precisar rolar por cima de tudo
+   que já apareceu no card fechado */
 .more{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 18px calc(20px + var(--safe));display:none}
 #sheet.open .more{display:block}
-#sheet.open .card{border-bottom:1px solid var(--line);padding-bottom:16px}
+#sheet.open .card{border-bottom:1px solid var(--line);padding-bottom:12px}
+#sheet.open .hood,#sheet.open .pk{display:none}
+#sheet.open .addr{font-size:17px}
+#sheet.open .cta{margin-top:10px}
 .mtitle{font-size:12px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.7px;margin:18px 0 9px}
 .nx{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--line)}
 .nx .n{flex:0 0 32px;height:32px;border-radius:10px;background:#EEF2F7;color:var(--mut);font-weight:800;
@@ -1226,14 +1231,14 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit}
     </div>
 
     <div class="more" id="more">
+      <div class="mtitle">Próximas paradas</div>
+      <div id="nextList"></div>
       <div class="mtitle">Achar um pacote</div>
       <div class="srch">
         <input id="q" maxlength="15" placeholder="últimos dígitos" autocomplete="off">
         <button id="btnScan" aria-label="escanear"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M7 12h10"/></svg></button>
       </div>
       <div id="sres"></div>
-      <div class="mtitle">Próximas paradas</div>
-      <div id="nextList"></div>
       <div class="mtitle">Carregar o baú</div>
       <div id="bauList"></div>
       <button class="btn link" id="btnQuit" style="margin-top:14px">encerrar e apagar esta rota</button>
@@ -2442,8 +2447,8 @@ window.addEventListener('resize',layoutSheet);
    (InstallApk) baixa a .apk e abre o instalador do Android — que sempre pede
    confirmação, não tem como pular essa tela. Fora do app nativo (navegador
    comum) essa checagem nem roda. */
-const APP_VERSION_CODE=27; // mantenha igual ao versionCode em android/app/build.gradle
-const APP_VERSION_NAME='0.16.0'; // mantenha igual ao versionName em android/app/build.gradle
+const APP_VERSION_CODE=28; // mantenha igual ao versionCode em android/app/build.gradle
+const APP_VERSION_NAME='0.16.1'; // mantenha igual ao versionName em android/app/build.gradle
 if($('#appVerLine'))$('#appVerLine').textContent=`v${APP_VERSION_NAME} (código ${APP_VERSION_CODE})`;
 (function(){
   const isNative=window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform();

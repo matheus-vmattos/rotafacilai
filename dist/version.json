@@ -1,6 +1,6 @@
 {
-  "versionCode": 27,
-  "versionName": "0.16.0",
+  "versionCode": 28,
+  "versionName": "0.16.1",
   "apkUrl": "https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/rotafacil.apk",
-  "notes": "Simplifica a entrega: tocar em ENTREGUEI agora já confirma na hora, sem pedir pra confirmar de novo numa segunda tela. Só quando o pacote NÃO for entregue é que abre uma tela (agora só com o motivo, sem escolha redundante) — tem um link discreto 'não consegui entregar' embaixo do botão verde pra isso."
+  "notes": "A lista 'Próximas paradas' (painel de baixo no mapa) agora aparece assim que você estende o painel — antes tinha que rolar por cima do endereço e dos pacotes da parada atual de novo pra chegar nela. Continua pequeno por padrão; ao estender, a lista rolável com 'fazer agora' em cada parada fica logo no topo."
 }
