@@ -2437,8 +2437,8 @@ window.addEventListener('resize',layoutSheet);
    (InstallApk) baixa a .apk e abre o instalador do Android — que sempre pede
    confirmação, não tem como pular essa tela. Fora do app nativo (navegador
    comum) essa checagem nem roda. */
-const APP_VERSION_CODE=25; // mantenha igual ao versionCode em android/app/build.gradle
-const APP_VERSION_NAME='0.15.1'; // mantenha igual ao versionName em android/app/build.gradle
+const APP_VERSION_CODE=26; // mantenha igual ao versionCode em android/app/build.gradle
+const APP_VERSION_NAME='0.15.2'; // mantenha igual ao versionName em android/app/build.gradle
 if($('#appVerLine'))$('#appVerLine').textContent=`v${APP_VERSION_NAME} (código ${APP_VERSION_CODE})`;
 (function(){
   const isNative=window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform();
@@ -2477,7 +2477,15 @@ if($('#appVerLine'))$('#appVerLine').textContent=`v${APP_VERSION_NAME} (código 
     if(!isNative)return toast('A atualização automática só funciona dentro do app instalado, não no navegador',3800);
     check(true);
   };
-  if(isNative)setTimeout(check,1200);
+  if(isNative){
+    setTimeout(check,1200);
+    // motorista raramente FECHA o app de verdade — normalmente só troca de
+    // tela e volta. Sem isso, a checagem rodava só 1x por dia (na abertura
+    // fria) e podia nunca pegar uma versão nova publicada no meio do dia.
+    setInterval(check,30*60*1000);
+    const App=window.Capacitor.Plugins&&window.Capacitor.Plugins.App;
+    if(App&&App.addListener)App.addListener('resume',()=>check());
+  }
 })();
 
 /* ===================== BOTÃO FÍSICO DE VOLTAR (Android) =====================

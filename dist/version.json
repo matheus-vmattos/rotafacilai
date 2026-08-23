@@ -1,6 +1,6 @@
 {
-  "versionCode": 25,
-  "versionName": "0.15.1",
+  "versionCode": 26,
+  "versionName": "0.15.2",
   "apkUrl": "https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/rotafacil.apk",
-  "notes": "Corrige a checagem de atualização automática (o link do servidor às vezes ficava com uma cópia velha guardada por alguns minutos depois de cada publicação, e o app não via a versão nova). Também adicionou um botão 'verificar atualização agora' na tela de ajuda (?), pra conferir na hora sem precisar fechar e abrir o app."
+  "notes": "Mais uma correção na atualização automática: o app só checava se tinha versão nova quando abria 'do zero' — se você só troca de tela e volta pro app sem fechar de verdade, ele nunca checava de novo. Agora checa também toda vez que o app volta pra frente, e a cada 30 minutos enquanto estiver aberto."
 }
