@@ -160,6 +160,9 @@ async function run() {
     await page.click('#btnBauDone');
     await page.waitForSelector('#app:not(.hide)');
 
+    step = 'linha da rota fica visível sozinha, sem precisar apertar nada';
+    assert.ok(await page.evaluate(() => !!ROUTE_LINE), 'a linha ligando as paradas deveria aparecer por padrão no mapa');
+
     step = 'ver rota inteira (visão geral) não quebra o mapa';
     await page.click('#btnRouteOverview');
     await page.waitForTimeout(300);

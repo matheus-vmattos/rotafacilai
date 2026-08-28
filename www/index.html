@@ -1669,8 +1669,11 @@ function startApp(){
   $('#scImport').classList.add('hide');$('#scBrief').classList.add('hide');$('#scBau').classList.add('hide');$('#app').classList.remove('hide');
   if(!MAP){
     MAP=L.map('map',{zoomControl:false,attributionControl:true});
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-      {maxZoom:20,attribution:'© OpenStreetMap © CARTO'}).addTo(MAP);
+    // a CARTO passou a exigir chave de API nos tiles gratuitos (o mapa
+    // ficava com uma marca d'água grande escrito "API KEY REQUIRED" por
+    // cima das ruas) — trocado pro basemap da Esri, que não pede chave
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+      {maxZoom:19,attribution:'Tiles © Esri'}).addTo(MAP);
     MAP.on('dragstart',()=>setFollow(false));
     // reagrupa os pinos quando o zoom/posição muda — o agrupamento é por
     // distância NA TELA, então precisa recalcular sempre que isso muda
@@ -1706,7 +1709,7 @@ function drawPins(){
     else drawClusterPin(group);
   });
   drawMe();
-  if(ROUTE_OVERVIEW_ON)drawRouteOverview();
+  drawRouteOverview();
 }
 function clusterPending(sis){
   if(!MAP||sis.length<2)return sis.map(si=>[si]);
@@ -1747,9 +1750,11 @@ function drawClusterPin(sis){
   m.addTo(PINS);
 }
 /* linha fina "esquemática" ligando as paradas que faltam, na ordem de
-   visita — só pra dar uma visão do formato do dia inteiro. Não é
-   navegação turno-a-turno (isso o Waze faz melhor) e não segue rua
-   nenhuma, é só ligar os pontos em linha reta mesmo. */
+   visita — sempre visível (era um dos pontos mais elogiados da 1ª
+   versão do app: dava pra entender o plano do dia de relance, sem
+   precisar decorar os números). Não é navegação turno-a-turno (isso o
+   Waze faz melhor) e não segue rua nenhuma, é só ligar os pontos em
+   linha reta mesmo. */
 let ROUTE_LINE=null,ROUTE_OVERVIEW_ON=false;
 function drawRouteOverview(){
   if(!MAP)return;
@@ -1760,15 +1765,15 @@ function drawRouteOverview(){
   ROUTE_LINE=L.polyline(latlngs,{color:'#94A3B8',weight:3,opacity:.7,dashArray:'2,9',lineCap:'round'}).addTo(MAP);
   ROUTE_LINE.bringToBack();
 }
+/* botão "ver rota inteira": afasta o zoom pra mostrar todas as paradas
+   de uma vez. A linha em si já fica sempre visível (acima); esse botão
+   só cuida do zoom/posição do mapa. */
 function toggleRouteOverview(){
   ROUTE_OVERVIEW_ON=!ROUTE_OVERVIEW_ON;
   $('#btnRouteOverview').classList.toggle('on',ROUTE_OVERVIEW_ON);
   if(ROUTE_OVERVIEW_ON){
-    drawRouteOverview();
-    // "ver rota inteira": afasta o zoom pra mostrar todas as paradas de
-    // uma vez (era o que os motoristas mais elogiavam na 1ª versão do
-    // app) — por isso também solta o "seguir", senão o GPS puxa o mapa
-    // de volta pra posição atual e desfaz a visão geral na hora
+    // solta o "seguir", senão o GPS puxa o mapa de volta pra posição
+    // atual e desfaz a visão geral na hora
     setFollow(false);
     const pending=ORDER.filter(si=>!DONE.has(si));
     if(MAP&&pending.length){
@@ -1777,7 +1782,6 @@ function toggleRouteOverview(){
       MAP.fitBounds(pts,{padding:[36,36]});
     }
   }else{
-    if(ROUTE_LINE){MAP.removeLayer(ROUTE_LINE);ROUTE_LINE=null}
     setFollow(true);
     const nx=nextStop();
     if(MAP&&nx)centerOn([nx.s.lat,nx.s.lng],16);
@@ -2447,8 +2451,8 @@ window.addEventListener('resize',layoutSheet);
    (InstallApk) baixa a .apk e abre o instalador do Android — que sempre pede
    confirmação, não tem como pular essa tela. Fora do app nativo (navegador
    comum) essa checagem nem roda. */
-const APP_VERSION_CODE=28; // mantenha igual ao versionCode em android/app/build.gradle
-const APP_VERSION_NAME='0.16.1'; // mantenha igual ao versionName em android/app/build.gradle
+const APP_VERSION_CODE=29; // mantenha igual ao versionCode em android/app/build.gradle
+const APP_VERSION_NAME='0.17.0'; // mantenha igual ao versionName em android/app/build.gradle
 if($('#appVerLine'))$('#appVerLine').textContent=`v${APP_VERSION_NAME} (código ${APP_VERSION_CODE})`;
 (function(){
   const isNative=window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform();

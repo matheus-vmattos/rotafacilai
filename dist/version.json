@@ -1,6 +1,6 @@
 {
-  "versionCode": 28,
-  "versionName": "0.16.1",
+  "versionCode": 29,
+  "versionName": "0.17.0",
   "apkUrl": "https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/rotafacil.apk",
-  "notes": "A lista 'Próximas paradas' (painel de baixo no mapa) agora aparece assim que você estende o painel — antes tinha que rolar por cima do endereço e dos pacotes da parada atual de novo pra chegar nela. Continua pequeno por padrão; ao estender, a lista rolável com 'fazer agora' em cada parada fica logo no topo."
+  "notes": "Corrige o mapa aparecendo com a marca d'água 'API KEY REQUIRED' por cima das ruas (o fornecedor do mapa mudou a política e passou a exigir isso) — trocado pra um mapa que não pede chave. E agora a linha ligando as paradas na ordem da rota fica sempre visível no mapa, sem precisar apertar 'ver rota inteira' — assim dá pra entender o plano do dia de relance."
 }
