@@ -1,9 +1,14 @@
 rules_version = '2';
 
-// Trancado por padrão até desenharmos as regras de verdade (ver README.md
-// desta pasta). Ninguém lê nem escreve nada até isso ser decidido.
+// Cada motorista só lê e escreve o próprio histórico de entregas —
+// nunca o de outra pessoa. É a base pra, no futuro, calcular coisas
+// como "rua com mais entrega" ou "dia mais cheio" a partir dos dados
+// reais de cada um. Tudo o mais fora dessa coleção continua travado.
 service cloud.firestore {
   match /databases/{database}/documents {
+    match /users/{userId}/deliveries/{deliveryId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
     match /{document=**} {
       allow read, write: if false;
     }

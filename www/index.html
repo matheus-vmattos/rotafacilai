@@ -1386,15 +1386,57 @@ const FIREBASE_CONFIG={
   messagingSenderId:'342330462678',
   appId:'1:342330462678:android:75b3ff436d7567f40a9477'
 };
-let AUTH=null,CURRENT_USER=null,FB_AUTH_MOD=null;
+let FB_APP=null,AUTH=null,CURRENT_USER=null,FB_AUTH_MOD=null;
 function isNative(){return!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform())}
+async function fbApp(){
+  if(FB_APP)return FB_APP;
+  const {initializeApp}=await import('https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js');
+  FB_APP=initializeApp(FIREBASE_CONFIG);
+  return FB_APP;
+}
 async function fbAuth(){
   if(FB_AUTH_MOD)return FB_AUTH_MOD;
-  const {initializeApp}=await import('https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js');
+  const app=await fbApp();
   const mod=await import('https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js');
-  AUTH=mod.getAuth(initializeApp(FIREBASE_CONFIG));
+  AUTH=mod.getAuth(app);
   FB_AUTH_MOD=mod;
   return mod;
+}
+let FB_STORE=null,FB_STORE_MOD=null,SYNCED_TO_CLOUD=new Set();
+async function fbFirestore(){
+  if(FB_STORE_MOD)return FB_STORE_MOD;
+  const app=await fbApp();
+  const mod=await import('https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js');
+  FB_STORE=mod.getFirestore(app);
+  FB_STORE_MOD=mod;
+  return mod;
+}
+/* histórico na nuvem — o começo de uma base pra, no futuro, saber quais
+   ruas/dias têm mais entrega. SEMPRE "melhor esforço": roda em segundo
+   plano e nunca trava nem avisa nada pro motorista se falhar (sem
+   sinal, etc.) — a entrega já está salva no celular de qualquer jeito,
+   isso aqui é só um extra que tenta subir quando dá. */
+async function syncDeliveriesToCloud(){
+  if(!CURRENT_USER||!CURRENT_USER.uid)return; // sem conta de verdade (ex: bypass de teste) não tem onde gravar
+  const pending=ORDER.filter(si=>DELIVERY[si]&&!SYNCED_TO_CLOUD.has(si));
+  if(!pending.length)return;
+  try{
+    const mod=await fbFirestore();
+    for(const si of pending){
+      const rec=DELIVERY[si],s=STOPS[si];
+      // ID fixo (rota + parada), não gerado à toa — assim, se a mesma
+      // entrega tentar subir de novo (ex: app reaberto antes de sincronizar
+      // da primeira vez), ela SOBRESCREVE o registro em vez de duplicar
+      const docId=`${ROUTE_START||'sr'}_${si}`;
+      const ref=mod.doc(FB_STORE,'users',CURRENT_USER.uid,'deliveries',docId);
+      await mod.setDoc(ref,{
+        addr:s.addr||'',hood:s.hood||'',city:s.city||'',
+        lat:rec.lat,lng:rec.lng,status:rec.status,reason:rec.reason||null,
+        ts:rec.ts,dayOfWeek:new Date(rec.ts).getDay(),routeId:ROUTE_START||null
+      });
+      SYNCED_TO_CLOUD.add(si);
+    }
+  }catch(e){/* sem sinal ou outro erro — sem problema, os dados continuam salvos no celular */}
 }
 function showLoginError(msg){const el=$('#loginError');el.textContent=msg;el.classList.remove('hide')}
 function clearLoginError(){$('#loginError').classList.add('hide')}
@@ -1584,7 +1626,7 @@ async function fetchLeg(a,b){
 
 /* ===================== CONSTRUIR ===================== */
 async function build(stops){
-  STOPS=stops;DONE=new Set();SCANNED=new Set();KM_DRIVEN=0;TRACK=[];ROUTE_START=Date.now();ROUTE_DONE_SPOKEN=false;BAUPLAN=null;DELIVERY={};NEAR_SUGGESTED=new Set();if(!STOPS.length)return toast('Nenhuma parada válida');
+  STOPS=stops;DONE=new Set();SCANNED=new Set();KM_DRIVEN=0;TRACK=[];ROUTE_START=Date.now();ROUTE_DONE_SPOKEN=false;BAUPLAN=null;DELIVERY={};NEAR_SUGGESTED=new Set();SYNCED_TO_CLOUD=new Set();if(!STOPS.length)return toast('Nenhuma parada válida');
   if(MAP&&ROUTE_LINE){MAP.removeLayer(ROUTE_LINE);ROUTE_LINE=null}ROUTE_OVERVIEW_ON=false;
   TAIL=calcTail(STOPS.flatMap(s=>s.pkgs));
   load(true,'localizando você…');ORIGIN=await getOrigin();
@@ -1852,7 +1894,7 @@ function refresh(){
     $('#btnDone').textContent='VER RESUMO';$('#btnDone').onclick=showDoneScreen;
     // rota acabou: para o GPS (senão fica gastando bateria até encerrar)
     if(WATCH!==null){navigator.geolocation.clearWatch(WATCH);WATCH=null}
-    if(!ROUTE_DONE_SPOKEN){ROUTE_DONE_SPOKEN=true;speak('Rota concluída. Parabéns!')}
+    if(!ROUTE_DONE_SPOKEN){ROUTE_DONE_SPOKEN=true;speak('Rota concluída. Parabéns!');syncDeliveriesToCloud()}
     return;
   }
   const s=nx.s,multi=s.pkgs.length>1;
@@ -2101,7 +2143,7 @@ $('#btnDoneShare').onclick=shareReport;
 $('#btnDoneSaveFile').onclick=saveRouteFile;
 $('#btnDoneMap').onclick=()=>{$('#doneScreen').classList.add('hide');$('#app').classList.remove('hide');layoutSheet()};
 $('#btnDoneEnd').onclick=()=>{
-  if(confirm('Isso apaga a rota, as entregas e as fotos salvas. Continuar?')){wipe();location.reload()}
+  if(confirm('Isso apaga a rota, as entregas e as fotos salvas. Continuar?')){syncDeliveriesToCloud();wipe();location.reload()}
 };
 
 /* o mapa precisa saber a altura do card pra centralizar certo */
@@ -2302,7 +2344,7 @@ $('#pkFullList').addEventListener('click',e=>{
 });
 $('#recenter').onclick=()=>setFollow(!FOLLOW);
 $('#btnRouteOverview').onclick=toggleRouteOverview;
-$('#btnQuit').onclick=()=>{if(confirm('Apagar esta rota?')){wipe();location.reload()}};
+$('#btnQuit').onclick=()=>{if(confirm('Apagar esta rota?')){syncDeliveriesToCloud();wipe();location.reload()}};
 document.addEventListener('click',e=>{
   const promoteBtn=e.target.closest('#nextList .promote');
   if(promoteBtn){promoteStop(+promoteBtn.dataset.promote);return}
@@ -2451,8 +2493,8 @@ window.addEventListener('resize',layoutSheet);
    (InstallApk) baixa a .apk e abre o instalador do Android — que sempre pede
    confirmação, não tem como pular essa tela. Fora do app nativo (navegador
    comum) essa checagem nem roda. */
-const APP_VERSION_CODE=29; // mantenha igual ao versionCode em android/app/build.gradle
-const APP_VERSION_NAME='0.17.0'; // mantenha igual ao versionName em android/app/build.gradle
+const APP_VERSION_CODE=30; // mantenha igual ao versionCode em android/app/build.gradle
+const APP_VERSION_NAME='0.18.0'; // mantenha igual ao versionName em android/app/build.gradle
 if($('#appVerLine'))$('#appVerLine').textContent=`v${APP_VERSION_NAME} (código ${APP_VERSION_CODE})`;
 (function(){
   const isNative=window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform();

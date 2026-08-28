@@ -1,39 +1,45 @@
-# Backend (Firebase) — pendente
+# Backend (Firebase)
 
-Hoje o Rota Fácil não tem backend: cada motorista tem seus dados só no
-próprio celular (rota, entregas, fotos — tudo em `localStorage`/`IndexedDB`
-do app). Isso funciona bem pra um motorista sozinho, mas não dá pra ter
-login, acompanhar uma frota, ou cobrar assinatura sem um servidor por trás.
+O Rota Fácil usa **Firebase** (Auth + Firestore), sem servidor próprio.
 
-O plano combinado é usar **Firebase** (Auth + Firestore) — sem precisar
-manter servidor próprio. Esta pasta é o esqueleto pronto pra isso; falta só
-uma coisa que só o dono do projeto pode fazer:
+- **Authentication** (Google + e-mail/senha): pronto e em uso — é a tela de
+  login obrigatória do app.
+- **Firestore**: guarda o **histórico de entregas** de cada motorista
+  (endereço, coordenada, dia da semana, se entregou ou não), pra no futuro
+  dar pra calcular coisas como "rua com mais entrega" ou "dia mais cheio".
+  Cada motorista só enxerga o próprio histórico — nunca o de outro
+  (`firestore.rules`).
 
-## O que falta (ação do Matheus)
+Tudo o resto do app continua funcionando **só com o celular** (rota do dia,
+paradas, baú) — o Firestore é um extra que tenta sincronizar em segundo
+plano, nunca trava nem impede o motorista de trabalhar se estiver sem
+sinal ou se a sincronização falhar por qualquer motivo.
 
-1. Criar um projeto em [console.firebase.google.com](https://console.firebase.google.com)
-   (gratuito no plano Spark pra começar).
-2. Ativar **Authentication** (método Google, ou e-mail/senha) e
-   **Firestore Database**.
-3. Baixar o `google-services.json` do app Android cadastrado no projeto
-   Firebase e me enviar (ou colar o conteúdo aqui pra eu configurar).
-4. Me passar o **Project ID** (aparece nas configurações do projeto).
+## Ação pendente (Matheus) — só falta isso
 
-Com isso em mãos, os próximos passos (que eu faço) são:
+O código já manda os dados pro Firestore, mas o banco de dados de verdade
+(no [console.firebase.google.com](https://console.firebase.google.com),
+projeto `rota-facil-f0eb6`) ainda está com as regras antigas, que travam
+tudo. Até você publicar a regra nova, a sincronização tenta e falha
+silenciosamente — sem problema nenhum pro motorista, só não guarda nada
+na nuvem ainda.
 
-- Preencher `.firebaserc` com o Project ID de verdade (o `.firebaserc.example`
-  aqui é só o molde).
-- Adicionar o SDK do Firebase no app (`www/index.html`) e o plugin nativo de
-  autenticação do Capacitor (login pelo Google não funciona só com o SDK
-  web dentro do WebView do app — precisa do plugin nativo).
-- Desenhar as regras de segurança do Firestore (`firestore.rules`) de
-  verdade — o arquivo aqui hoje **nega tudo por padrão**, de propósito,
-  até decidirmos o que cada motorista pode ler/escrever.
-- Decidir o formato dos dados (uma rota por motorista? por dia? o que fica
-  só no celular vs. o que sincroniza?) — ainda não decidido, não vou supor.
+**Pra ativar:**
+1. Abra o projeto no console do Firebase → **Firestore Database** → aba
+   **Regras**.
+2. Apague o conteúdo e cole o texto do arquivo `firestore.rules` desta
+   pasta.
+3. Clique em **Publicar**.
 
-## Por que essa pasta existe já, mesmo sem o Firebase pronto
+Pronto — a partir daí, toda vez que uma rota terminar (ou for encerrada
+manualmente), as entregas daquele dia sobem sozinhas pro Firestore.
 
-Só pra deixar o projeto organizado: quando o backend entrar, ele fica
-separado do código do app (pasta `www/`), sem misturar as duas coisas num
-arquivo só. Nada aqui roda ainda — é só o molde.
+## O que ainda NÃO existe (próximos passos, quando fizer sentido)
+
+- Uma tela no app mostrando os números calculados a partir desse
+  histórico ("rua com mais entrega", "dia mais cheio") — hoje só os
+  dados brutos são guardados; ainda não tem nenhuma tela de relatório
+  lendo isso de volta.
+- Nenhuma lógica ainda usa esse histórico pra ajustar a rota (ex: avisar
+  "essa rua já deu problema antes") — é só a base de dados, o
+  aproveitamento dela é um passo separado.

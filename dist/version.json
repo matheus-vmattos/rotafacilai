@@ -1,6 +1,6 @@
 {
-  "versionCode": 29,
-  "versionName": "0.17.0",
+  "versionCode": 30,
+  "versionName": "0.18.0",
   "apkUrl": "https://raw.githubusercontent.com/matheus-vmattos/rotafacilai/claude/rota-facil-app-zy486p/dist/rotafacil.apk",
-  "notes": "Corrige o mapa aparecendo com a marca d'água 'API KEY REQUIRED' por cima das ruas (o fornecedor do mapa mudou a política e passou a exigir isso) — trocado pra um mapa que não pede chave. E agora a linha ligando as paradas na ordem da rota fica sempre visível no mapa, sem precisar apertar 'ver rota inteira' — assim dá pra entender o plano do dia de relance."
+  "notes": "Começo do histórico de entregas na nuvem: quando uma rota termina (ou é encerrada), as entregas do dia sobem sozinhas pro banco de dados, ligadas à sua conta — é a base pra, mais pra frente, calcular coisas como rua com mais entrega ou dia mais cheio. Não muda nada no uso do dia a dia: se não tiver sinal, ou enquanto as regras novas não forem publicadas no console do Firebase, o app continua funcionando normal, só não guarda nada na nuvem ainda."
 }

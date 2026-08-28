@@ -56,6 +56,21 @@ async function run() {
   // credenciais reais e depende de rede; ver initAuth() em www/index.html)
   await page.addInitScript(() => { window.__TEST_BYPASS_LOGIN__ = true; });
 
+  // mocka os módulos do Firebase pra testar o histórico na nuvem
+  // (syncDeliveriesToCloud) sem depender de uma conta/rede reais
+  const FAKE_FS_MODULE = `
+    window.__FS_CALLS__ = window.__FS_CALLS__ || [];
+    export function getFirestore(app){ return { __fake: true, app }; }
+    export function doc(...args){ return { __path: args.slice(1).join('/') }; }
+    export function collection(){ return {}; }
+    export function setDoc(ref, data){ window.__FS_CALLS__.push({ path: ref.__path, data }); return Promise.resolve(); }
+  `;
+  const FAKE_APP_MODULE = `export function initializeApp(cfg){ return { __fakeApp: true, cfg }; }`;
+  await page.route('https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js',
+    (route) => route.fulfill({ status: 200, contentType: 'text/javascript', body: FAKE_APP_MODULE }));
+  await page.route('https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js',
+    (route) => route.fulfill({ status: 200, contentType: 'text/javascript', body: FAKE_FS_MODULE }));
+
   let step = 'início';
   try {
     step = 'carregar a página';
@@ -199,6 +214,19 @@ async function run() {
     const rec3 = await page.evaluate((si) => DELIVERY[si], thirdSi);
     assert.strictEqual(rec3.status, 'nao_entregue');
     assert.strictEqual(rec3.reason, 'Cliente ausente');
+
+    step = 'histórico na nuvem: sincroniza as entregas feitas, sem duplicar';
+    await page.evaluate(() => { CURRENT_USER = { uid: 'motorista-teste-123', email: 'motorista@teste.com' }; });
+    await page.evaluate(() => syncDeliveriesToCloud());
+    await page.waitForTimeout(400);
+    const fsCallsAfterFirst = await page.evaluate(() => window.__FS_CALLS__ || []);
+    assert.strictEqual(fsCallsAfterFirst.length, 2, 'deveria ter sincronizado as 2 entregas já feitas (entregue + não entregue)');
+    assert.ok(fsCallsAfterFirst.every((c) => c.path.includes('users/motorista-teste-123/deliveries/')),
+      'cada registro deveria ficar isolado dentro do uid do motorista logado');
+    await page.evaluate(() => syncDeliveriesToCloud()); // sincroniza de novo sem entregar nada a mais
+    await page.waitForTimeout(300);
+    const fsCallsAfterSecond = await page.evaluate(() => window.__FS_CALLS__ || []);
+    assert.strictEqual(fsCallsAfterSecond.length, 2, 'sincronizar de novo sem novas entregas não deveria duplicar registros');
 
     step = 'pular parada (e recalcular sozinho a partir de onde está)';
     // mocka o OSRM pra esse recálculo automático não depender de rede real —
